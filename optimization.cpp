@@ -273,6 +273,89 @@ double armijoCurvature(std::function<double(std::vector<double> &)> func, std::v
     return alpha;
 }// end armijoCurvature
 
+// Project x between lower and upper bounds
+std::vector<double> project_bounds(const std::vector<double>& x, 
+                                   const std::vector<double>& lower, 
+                                   const std::vector<double>& upper) {
+    std::vector<double> x_projected(x.size());
+    for (size_t i = 0; i < x.size(); ++i) {
+        x_projected[i] = std::min(std::max(x[i], lower[i]), upper[i]);
+    }
+    return x_projected;
+}
+
+// Limited Memory BFGS-B
+std::vector<double> lbfgsb_update(const std::vector<double> &g, std::deque<std::vector<double>> &s_history, 
+                                  std::deque<std::vector<double>> &y_history, std::deque<double> &rho_history,
+                                  double gamma_k, int m) {
+    // Two-loop recursion to compute the search direction 'z'
+    std::vector<double> q = g;
+    std::vector<double> alphas(m, 0.0);
+
+    // First loop
+    for (int i = 0; i < m && i < s_history.size(); ++i) {
+        alphas[i] = rho_history[i] * dot_product(s_history[i], q);
+        q = subtract_vectors(q, scale_vector(y_history[i], alphas[i]));
+    }
+
+    std::vector<double> z = scale_vector(q, gamma_k);  
+
+    // Second loop
+    for (int i = s_history.size() - 1; i >= 0; --i) {
+        double beta = rho_history[i] * dot_product(y_history[i], z);
+       z =  add_vectors(z, scale_vector(s_history[i], (alphas[i] - beta)));
+    }
+
+    return scale_vector(z, -1.0);  // descent direction
+}
+
+std::pair<std::vector<double>, std::vector<double>> lbfgsb_step(std::function<double(std::vector<double> &)> func,
+    const std::vector<double>& x, const std::vector<double>& g,
+    const std::pair<std::vector<double>, std::vector<double>>& bounds, // Added bounds as pair
+    std::deque<std::vector<double>>& s_history, std::deque<std::vector<double>>& y_history,
+    std::deque<double>& rho_history, double& gamma_k, int m) {
+
+    //gamma_k = dot_product(s_history.front(), y_history.front()) / dot_product(y_history.front(), y_history.front());
+    // Perform lbfgsb_update to get search direction
+    std::vector<double> z = lbfgsb_update(g, s_history, y_history, rho_history, gamma_k, m);
+
+    // Perform line search to get new x and g
+    // Quadratic interpolation
+    double alpha = quadratic_line_search(func, x, z);
+
+    // Quadratic interpolation same as MnLineSearch in Minuit2
+    //double alpha = mnLineSearch(func, x, p);
+    //std::cout << "\nalpha = "<<alpha;
+
+    // Update the current point x by taking a step of size alpha in the direction p.
+    //std::vector<double> x_new = x;
+    std::vector<double> x_new_unbounded = x;
+    std::vector<double> x_new = project_bounds(x_new_unbounded, bounds.first, bounds.second);
+
+    //std::cout << "x_new loop" << std::endl;
+    for (int j = 0; j < x.size(); j++) {
+        x_new[j] += alpha * z[j];
+        //std::cout << x_new[j] << " " << " SD = " << p[j] << " ";
+    }// end for
+
+    std::vector<double> g_new = gradient(func, x_new, 1e-7);
+    // Update s_new, y_new, rho_new, and histories
+    std::vector<double> s_new = subtract_vectors(x_new, x);
+    std::vector<double> y_new = subtract_vectors(g_new, g);
+    double rho_new = 1.0 / dot_product(y_new, s_new);
+    gamma_k = dot_product(s_new, y_new) / dot_product(y_new, y_new);
+
+    if (s_history.size() == m) {
+        s_history.pop_front();
+        y_history.pop_front();
+        rho_history.pop_front();
+    }
+    s_history.push_back(s_new);
+    y_history.push_back(y_new);
+    rho_history.push_back(rho_new);
+
+    return {x_new, g_new};
+}
 
 /* The Broyden–Fletcher–Goldfarb–Shanno update */
 void bfgs_update(std::vector<std::vector<double>>& H,
@@ -346,109 +429,96 @@ void dfp_update(std::vector<std::vector<double>>& H,
     */
 }
 
-double optimize(std::function<double(std::vector<double> &)> func, std::vector<double> x0, bool use_bfgs, double tol = 1e-8, int max_iter = 2500) {
+double optimize(std::function<double(std::vector<double> &)> func, std::vector<double> x0, std::string algorithm,  double tol, int max_iter, std::pair<std::vector<double>,std::vector<double>> bounds) {
     double min_value = std::numeric_limits<double>::max();
     std::vector<double> x = x0;
+
+    // L-BFGS-B init
+    std::deque<std::vector<double>> s_history, y_history;
+    std::deque<double> rho_history;
+    double gamma_k = 1.0;  // initial scaling factor
+    int m = 3;  // history size
 
     // Initialize the Hessian matrix to identity matrix
     std::vector<std::vector<double>> H(x0.size(), std::vector<double>(x0.size(), 0));
     for (int i = 0; i < x0.size(); i++) {
         H[i][i] = 1; // along the diagonals, place 1's to create Identity Matrix
     }//end for
-
+    
     // Main loop
     for (int i = 0; i < max_iter; i++) {
         // Compute Gradient
         std::vector<double> g = gradient(func, x, 1e-7);
 
         // Check if the length of gradient vector is less than our tolerance
-        if (norm(g) < 1e-10) { 
+        if (norm(g) < 1e-12) { 
             min_value = std::min(min_value, func(x));
             if (min_value < global_min) {
                 global_min = min_value;
-                std::cout << "\nnorm(g): New Global Minimum: " << global_min << " with parameters:" <<std::endl;
+                //std::cout << "\nnorm(g): New Global Minimum: " << global_min << " with parameters:" <<std::endl;
                 best_params = {};
                 for (int i=0;i<=x.size();i++){
                     best_params.push_back(x[i]);
-                    std::cout<< "x["<<i<<"]: " << best_params[i]<<std::endl;
+                //    std::cout<< "x["<<i<<"]: " << best_params[i]<<std::endl;
                 }
                 return min_value;
             }//end if
             return global_min;
         }// end if
 
-        // Compute Search Direction
-        std::vector<double> p = matvec_product(H, g);
-        for (auto &val : p) {
-            val = -val; // opposite of greatest increase
-        }// end for
-
-        /*** Calculate optimal step size in the search direction p ***/
-
-        // Simple Inexact Line Search
-        //double alpha = line_search_simple(func, x, p, 0.5, 0.5);
-        //double alpha = 0.01;
-
-        // Armijo condition,. alpha, c, tau
-        //double alpha = line_search(func, x, p, 0.5, 0.5, 0.5);
-        //double alpha = simple_backtracking(func, x,p, 0.5, 0.5);
-
-        // Armijo + Curvature
-
-        // Cubic interpolation
-        //double alpha = cubicInterpolationLineSearch(func, x, p, x[0]);
-
-        // Quadratic interpolation
-        double alpha = quadratic_line_search(func, x, p);
-
-        // Quadratic interpolation same as MnLineSearch in Minuit2
-        //double alpha = mnLineSearch(func, x, p);
-        //std::cout << "\nalpha = "<<alpha;
-
-        // Update the current point x by taking a step of size alpha in the direction p.
-        std::vector<double> x_new = x;
-        //std::cout << "x_new loop" << std::endl;
-        for (int j = 0; j < x.size(); j++) {
-            x_new[j] += alpha * p[j];
-            //std::cout << x_new[j] << " " << " SD = " << p[j] << " ";
-        }// end for
-
-
-        // Compute the difference between the new point and the old point, delta_x
-        std::vector<double> delta_x = x_new;
-        for (int j = 0; j < x.size(); j++) {
-            delta_x[j] -= x[j];
-        }// end for
-
-        // Compute the difference in the gradient at the new point and the old point, delta_g.
-        std::vector<double> delta_g = gradient(func, x_new, 1e-7);
-        for (int j = 0; j < g.size(); j++) {
-            delta_g[j] -= g[j];
-        }// end for
-
-        //
-        double delta_dot = dot_product(delta_x, delta_g);
-
-        if (use_bfgs) {
-            // Update the inverse Hessian approximation using BFGS
-            bfgs_update(H, delta_x, delta_g, delta_dot);
-        } else {
-            // Update the approximation of the inverse Hessian using DFP
-            dfp_update(H, delta_x, delta_g);
-        }
-        /* bool valid = false;
-        for(auto& param : x_new) {
-            if(abs(param) > 512 || abs(std::min(min_value, func(x))) > 960) {
-                valid = false;
-            } else {
-                valid = true;
-            }
-        }
-        if(valid == true) {
+        if(algorithm == "lbfgsb") {
+            std::pair<std::vector<double>, std::vector<double>> result = lbfgsb_step(func,x,g,bounds,s_history, y_history, rho_history, gamma_k, m);
+            //auto [x_new, g_new] = lbfgsb_step(func, x, g, s_history, y_history, rho_history, gamma_k, m);
+            std::vector<double> x_new = result.first;
+            std::vector<double> g_new = result.second;
             x = x_new;
-        }*/
-        x = x_new;
-        min_value = std::min(min_value, func(x));
+            g = g_new;
+        } else {
+            // Compute Search Direction
+            std::vector<double> p = matvec_product(H, g);
+            for (auto &val : p) {
+                val = -val; // opposite of greatest increase
+            }// end for
+
+            /*** Calculate optimal step size in the search direction p ***/
+            // Simple Inexact Line Search
+            //double alpha = line_search_simple(func, x, p, 0.5, 0.5);
+            //double alpha = 0.01;
+            // Armijo condition,. alpha, c, tau
+            //double alpha = line_search(func, x, p, 0.5, 0.5, 0.5);
+            //double alpha = simple_backtracking(func, x,p, 0.5, 0.5);
+            // Cubic interpolation
+            //double alpha = cubicInterpolationLineSearch(func, x, p, x[0]);
+            // Quadratic interpolation
+            double alpha = quadratic_line_search(func, x, p);
+            // Quadratic interpolation same as MnLineSearch in Minuit2
+            //double alpha = mnLineSearch(func, x, p);
+
+            // Update the current point x by taking a step of size alpha in the direction p.
+            std::vector<double> x_new = x;
+            for (int j = 0; j < x.size(); j++) { x_new[j] += alpha * p[j];}// end for
+
+            // Compute the difference between the new point and the old point, delta_x
+            std::vector<double> delta_x = x_new;
+            for (int j = 0; j < x.size(); j++) { delta_x[j] -= x[j];}// end for
+
+            // Compute the difference in the gradient at the new point and the old point, delta_g.
+            std::vector<double> delta_g = gradient(func, x_new, 1e-7);
+            for (int j = 0; j < g.size(); j++) { delta_g[j] -= g[j];}// end for
+
+
+            if (algorithm == "bfgs") {
+                // Update the inverse Hessian approximation using BFGS
+                double delta_dot = dot_product(delta_x, delta_g);
+
+                bfgs_update(H, delta_x, delta_g, delta_dot);
+            } else {
+                // Update the approximation of the inverse Hessian using DFP
+                dfp_update(H, delta_x, delta_g);
+            }
+            x = x_new;
+            min_value = std::min(min_value, func(x));
+        }//end else
     }// end main loop
 
     //std::cout << "Maximum iterations reached without convergence.\nOptimized parameters:\n";
@@ -459,18 +529,19 @@ double optimize(std::function<double(std::vector<double> &)> func, std::vector<d
 }// end dfp
 
 
-double minimize(std::function<double(std::vector<double> &)> func, std::vector<double> x0, std::string name, 
-              int pop_size, int max_gens, int dim, bool use_bfgs) {
-                
+long minimize(std::function<double(std::vector<double> &)> func, std::vector<double> x0, std::string name, 
+              int pop_size, int max_gens, int dim, std::string algorithm, std::pair<std::vector<double>, std::vector<double>> bounds) {
     global_min = std::numeric_limits<double>::max();
     auto start = std::chrono::high_resolution_clock::now();
-    auto final_population = genetic_algo(func, max_gens, pop_size, dim, x0, use_bfgs);
+    auto final_population = genetic_algo(func, max_gens, pop_size, dim, x0, algorithm, bounds);
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-    std::cout << "\ntime: " << duration.count() << " ms" << std::endl;
+    long time = duration.count();
+    std::cout << "\ntime: " << time << " ms" << std::endl;
     std::cout << "Predicted Global minimum for " << name << " = " << global_min << "\nOptimized Parameters:" <<std::endl;
     for (int i = 0; i < best_params.size(); i++) {
         std::cout << "x" << i  << ": "<< best_params[i] << "\n";
     }
-    return global_min;
+    std::cout << std::endl;
+    return time;
 }

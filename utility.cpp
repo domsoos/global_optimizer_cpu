@@ -12,10 +12,25 @@ int rand(int min, int max) {
   return dist(generator);
 }
 
+long measure_memory() {
+    struct rusage r_usage;
+    getrusage(RUSAGE_SELF, &r_usage);
+    return r_usage.ru_maxrss;
+}
+
+
 double global_min = std::numeric_limits<double>::max();
 std::vector<double> best_params;
 
 /*** Utility Functions for Matrix-Vector-Scalar operations  ***/
+// Scale a vector
+std::vector<double> scale_vector(const std::vector<double> &v1, double scalar) {
+    std::vector<double> result(v1.size());
+    for (size_t i = 0; i < v1.size(); ++i) {
+        result[i] = v1[i] * scalar;
+    }//end for
+    return result;
+}
 // Vector addition
 std::vector<double> add_vectors(const std::vector<double>& v1, const std::vector<double>& v2) {
     if (v1.size() != v2.size()) {

@@ -10,10 +10,12 @@
 
 double rand(double min, double max);
 int rand(int min, int max);
+long measure_memory();
 
 extern double global_min;
 extern std::vector<double> best_params;
 
+std::vector<double> scale_vector(const std::vector<double> &v1, double scalar);
 std::vector<double> add_vectors(const std::vector<double>& v1, const std::vector<double>& v2);
 std::vector<double> subtract_vectors(const std::vector<double>& v1, const std::vector<double>& v2);
 std::vector<double> matvec_product(const std::vector<std::vector<double>>& m, const std::vector<double>& v);

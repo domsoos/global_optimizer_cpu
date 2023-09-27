@@ -2,19 +2,28 @@
 #include "genetic.h"
 
 // Generate initial population
-std::vector<Individual> init_population(std::function<double(std::vector<double> &)> func, int dim, std::vector<double> x0, int pop_size, bool use_bfgs) {
+std::vector<Individual> init_population(std::function<double(std::vector<double> &)> func, int dim, std::vector<double> x0, int pop_size, std::string algorithm, std::pair<std::vector<double>, std::vector<double>> bounds) {
     std::vector<Individual> population;
+    double lower, upper;
+
+    if(algorithm == "lbfgsb") {
+        lower = bounds.first[0];
+        upper = bounds.second[0];
+    } else {
+        lower = -10.5;
+        upper = 10.5;
+    }
 
     for (int i = 0; i < pop_size; i++) {
         Individual ind;
         //ind.genes = x0;
         std::vector<double> genes;
         for (int i=0; i<=dim; i++){
-            double random = static_cast<double>(rand(-10.5, 10.5));
+            double random = static_cast<double>(rand(lower, upper));
             genes.push_back(random);
         }//end for
         ind.genes = genes;
-        ind.fitness = optimize(func, ind.genes, use_bfgs, 1e-12, 2500); 
+        ind.fitness = optimize(func, ind.genes, algorithm, 1e-12, 2500, bounds); 
         population.push_back(ind);
     }
     return population;
@@ -36,7 +45,7 @@ Individual tournament_selection(std::vector<Individual> population) {
 }// end tournament_selection
 
 // Crossover
-std::vector<Individual> crossover(std::function<double(std::vector<double> &)> func, Individual ind1, Individual ind2, bool use_bfgs) {
+std::vector<Individual> crossover(std::function<double(std::vector<double> &)> func, Individual ind1, Individual ind2, std::string algorithm,std::pair<std::vector<double>, std::vector<double>> bounds) {
     std::vector<Individual> offspring;
     offspring.resize(2);
 
@@ -48,8 +57,8 @@ std::vector<Individual> crossover(std::function<double(std::vector<double> &)> f
     offspring[1].genes = {ind2.genes[0], ind1.genes[1]};
 
     // Evaluate the fitness of each offspring from the parents
-    offspring[0].fitness = optimize(func, offspring[0].genes,use_bfgs, 1e-12, 500);
-    offspring[1].fitness = optimize(func, offspring[1].genes,use_bfgs, 1e-12, 500);
+    offspring[0].fitness = optimize(func, offspring[0].genes,algorithm, 1e-12, 2500, bounds);
+    offspring[1].fitness = optimize(func, offspring[1].genes,algorithm, 1e-12, 2500, bounds);
 
     return offspring;
 }// end crossover
@@ -64,11 +73,9 @@ void mutate(Individual &ind) {
 }// end mutate
 
 // Genetic algorithm 
-std::vector<Individual> genetic_algo(std::function<double(std::vector<double> &)> func, int max_gens, int pop_size, int dim, std::vector<double> x0, bool use_bfgs) {
-    std::vector<Individual> population = init_population(func, dim, x0,pop_size, use_bfgs);
-
+std::vector<Individual> genetic_algo(std::function<double(std::vector<double> &)> func, int max_gens, int pop_size, int dim, std::vector<double> x0, std::string algorithm, std::pair<std::vector<double>, std::vector<double>> bounds) {
+    std::vector<Individual> population = init_population(func, dim, x0,pop_size, algorithm, bounds);
     for (int gen = 0; gen < max_gens; gen++) {
-
         // Create next generation
         std::vector<Individual> next_gen;
         // create next generation based on the mutation of the previous one    
@@ -79,7 +86,7 @@ std::vector<Individual> genetic_algo(std::function<double(std::vector<double> &)
             Individual ind2 = tournament_selection(population);
 
             // Crossover
-            auto offspring = crossover(func, ind1, ind2, use_bfgs);
+            auto offspring = crossover(func, ind1, ind2, algorithm, bounds);
 
             // Mutation
             mutate(offspring[0]);
@@ -96,12 +103,12 @@ std::vector<Individual> genetic_algo(std::function<double(std::vector<double> &)
         // Find the global minimum in the current population
         for (auto& individual : next_gen) {
             if (individual.fitness < global_min) {
-                std::cout<<"\n\ngenetic New Global Minimum: " << individual.fitness << " w/ params: \n";
+                //std::cout<<"\n\ngenetic New Global Minimum: " << individual.fitness << " w/ params: \n";
                 global_min = individual.fitness; 
                 best_params = {};
                 for(int i=0;i<individual.genes.size();i++) {
                     best_params.push_back(individual.genes[i]);
-                    std::cout <<"x["<<i<<"]: " << individual.genes[i]<<std::endl;
+                    //std::cout <<"x["<<i<<"]: " << individual.genes[i]<<std::endl;
                 }
             }// end if
 
