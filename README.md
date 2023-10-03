@@ -1,15 +1,16 @@
 # Global Optimizer CPU
 HPC Research Project for Global Optimization
 
+The full report can be found [here](https://rpubs.com/domsoos/1091304)
 
 To compile the program, run the following command:
 
 ```
 make && ./main
 ```
+The program will ask how many dimensions the user would like to use the Rosenbrock function. Then the user have to choose the type of algorithm to run.      
 
-Then, to generate a report, install R and Quarto then use:
-
+To generate a resource usage report, install R and Quarto then use:
 ```
 quarto render memory.qmd
 ```
