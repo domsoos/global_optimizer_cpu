@@ -9,7 +9,7 @@ double rosenbrock(std::vector<double>& x) {
   return square(1 - x[0]) + 100 * square(x[1] - square(x[0]));
 }
 
-double rosenbrock_10D(const std::vector<double>& x) {
+double rosenbrock_multi(std::vector<double>& x) {
     double sum = 0.0;
     for (int i = 0; i < 9; ++i) {
         sum += square(1.0 - x[i]) + 100.0 * square(x[i + 1] - square(x[i]));

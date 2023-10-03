@@ -2,6 +2,7 @@
 #include <vector>
 
 double rosenbrock(std::vector<double>& x);
+double rosenbrock_multi(std::vector<double>& x);
 double rastrigin(std::vector<double>& x);
 double ackley(std::vector<double>& x);
 double eggholder(std::vector<double>& x);

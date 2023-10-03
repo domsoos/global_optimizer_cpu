@@ -309,7 +309,7 @@ std::vector<double> lbfgsb_update(const std::vector<double> &g, std::deque<std::
     return scale_vector(z, -1.0);  // descent direction
 }
 
-std::pair<std::vector<double>, std::vector<double>> lbfgsb_step(std::function<double(std::vector<double> &)> func,
+std::pair<std::vector<double>, std::vector<double>> lbfgsb_step(std::function<double(std::vector<double> &)> func,std::string algorithm,
     const std::vector<double>& x, const std::vector<double>& g,
     const std::pair<std::vector<double>, std::vector<double>>& bounds, // Added bounds as pair
     std::deque<std::vector<double>>& s_history, std::deque<std::vector<double>>& y_history,
@@ -328,10 +328,14 @@ std::pair<std::vector<double>, std::vector<double>> lbfgsb_step(std::function<do
     //std::cout << "\nalpha = "<<alpha;
 
     // Update the current point x by taking a step of size alpha in the direction p.
-    //std::vector<double> x_new = x;
-    std::vector<double> x_new_unbounded = x;
-    std::vector<double> x_new = project_bounds(x_new_unbounded, bounds.first, bounds.second);
-
+    std::vector<double> x_new;
+    if(algorithm == "lbfgsb") {
+        std::vector<double> x_new_unbounded = x;
+        x_new = project_bounds(x_new_unbounded, bounds.first, bounds.second);
+    } else {
+        x_new = x;
+    }// we use box only for BFGS
+    
     //std::cout << "x_new loop" << std::endl;
     for (int j = 0; j < x.size(); j++) {
         x_new[j] += alpha * z[j];
@@ -466,8 +470,8 @@ double optimize(std::function<double(std::vector<double> &)> func, std::vector<d
             return global_min;
         }// end if
 
-        if(algorithm == "lbfgsb") {
-            std::pair<std::vector<double>, std::vector<double>> result = lbfgsb_step(func,x,g,bounds,s_history, y_history, rho_history, gamma_k, m);
+        if(algorithm.find("lbfgs") != std::string::npos) {
+            std::pair<std::vector<double>, std::vector<double>> result = lbfgsb_step(func,algorithm,x0,g,bounds,s_history, y_history, rho_history, gamma_k, m);
             //auto [x_new, g_new] = lbfgsb_step(func, x, g, s_history, y_history, rho_history, gamma_k, m);
             std::vector<double> x_new = result.first;
             std::vector<double> g_new = result.second;
@@ -533,15 +537,13 @@ long minimize(std::function<double(std::vector<double> &)> func, std::vector<dou
               int pop_size, int max_gens, int dim, std::string algorithm, std::pair<std::vector<double>, std::vector<double>> bounds) {
     global_min = std::numeric_limits<double>::max();
     auto start = std::chrono::high_resolution_clock::now();
-    auto final_population = genetic_algo(func, max_gens, pop_size, dim, x0, algorithm, bounds);
+    //auto final_population = genetic_algo(func, max_gens, pop_size, dim, x0, algorithm, bounds);
+    double minima = optimize(func, x0, algorithm, 1e-12, 2500, bounds);
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
     long time = duration.count();
     std::cout << "\ntime: " << time << " ms" << std::endl;
-    std::cout << "Predicted Global minimum for " << name << " = " << global_min << "\nOptimized Parameters:" <<std::endl;
-    for (int i = 0; i < best_params.size(); i++) {
-        std::cout << "x" << i  << ": "<< best_params[i] << "\n";
-    }
+    std::cout << "Predicted Global minimum for " << name << ": " << minima <<std::endl;
     std::cout << std::endl;
     return time;
 }

@@ -4,10 +4,10 @@
 
 #include <sys/resource.h>
 #include <fstream>
-
+#include <sstream>
 
 int main() {
-    int pop_size, max_gens;
+    int dim;
     long before, after, result;
     double error;
     char answer, going;
@@ -18,41 +18,45 @@ int main() {
     std::pair<std::vector<double>, std::vector<double>> bounds;
 
     std::string algorithm;
-    std::ofstream rast("memory_rastrigin5.csv");
-    std::ofstream heli("memory_helical5.csv");
-    rast << "Algorithm,Time,Error,MemoryKB,MemoryMB\n";
-    heli << "Algorithm,Time,Error,MemoryKB,MemoryMB\n";
 
-    std::cout << "\nEnter population size: ";
-    std::cin >> pop_size;
-    std::cout << "Enter maximum generations: ";  
-    std::cin >> max_gens;
+    std::cout << "\n\nMultidimensional Rosenbrock Optimization" << std::endl;
+    std::cout << "How many dimensions? ";
+    std::cin >> dim;
+
+    std::ostringstream filenameStream;
+    filenameStream << "memory_rosenbrock" << dim << ".csv";
+    std::string filename = filenameStream.str();
+    std::ofstream rosen(filename);
+    
+    if(dim >= 100) {
+        rosen << "Algorithm,Time,Error,MemoryMB,MemoryGB\n";
+    }else {
+        rosen << "Algorithm,Time,Error,MemoryKB,MemoryMB\n";
+    }
 
     while(!done) {
+        std::cout << "\nChoose the algorithm"<<std::endl;;
         std::cout << "Use BFGS? ";
         std::cin >> answer;
         if (std::tolower(answer) == 'y') {
-            char lbfgsb;
-            std::cout << "Limited memory variant - L-BFGS-B? ";
-            std::cin >> lbfgsb;
-            if (std::tolower(lbfgsb) == 'y') {
-                algorithm = "lbfgsb";
+            char lbfgs, box;
+            std::cout << "Limited memory variant - L-BFGS? ";
+            std::cin >> lbfgs;
+            if (std::tolower(lbfgs) == 'y') {
+                std::cout << "bounded? ";
+                std::cin >> box;
+                if(std::tolower(box) == 'y') {
+                    algorithm = "lbfgsb";
+                } else {
+                    algorithm = "lbfgs";
+                }
             } else {
                 algorithm = "bfgs";
             }
         }
         else { algorithm = "dfp";}
 
-        before = measure_memory();
-        std::vector<double> ra0 = {3.0, 3.0};
         if (algorithm  == "lbfgsb"){
-            //for (int i=0; i<dim; ++i) {
-            //    std::cout << "\nEnter the lower bound for dimension " << i + 1 << ": ";
-            //    std::cin >> lower_bounds[i];  
-            //    std::cout << "\nEnter the upper bound for dimension " << i + 1 << ": ";
-            //    std::cin >> upper_bounds[i];
-            //}
-            //bounds = {lower_bounds, upper_bounds};
             std::cout<<"Enter lower bound: ";
             std::cin>>lower;
             std::cout<<"Enter upper bound: ";
@@ -62,44 +66,26 @@ int main() {
                 bounds.second.push_back(upper);
             }//end for
         }// end if lbfgsb
-        std::cout << "\n\nrastrigin(3.0, 3.0) = " << rastrigin(ra0);
-        auto time = minimize(rastrigin, ra0, "Rastrigin", pop_size, max_gens, 2, algorithm, bounds);
+
+        std::vector<double> x0;
+        for(int i=0;i<dim;i++){
+            x0.push_back(2.0);
+        }
+        before = measure_memory();
+        auto time = minimize(rosenbrock_multi,x0,"Rosenbrock",0,0,dim, algorithm, bounds);
+        //  rosenbrock_multi, x0,algorithm,1e-12,2500,bounds);
         after = measure_memory();
         result = after - before;
         error = fabs(global_min);
-        std::cout << "Memory usage during Rastrigin Optimization: " << result << " KB";
-        rast << algorithm << "," << time << "," << error << "," << result << "," << result/1024 << "\n";
-        std::cout << "\nGlobal Minimum(0.0, 0.0) = 0\n Error = " <<error;
-
-        if (algorithm  == "lbfgsb"){
-            //for (int i=0; i<dim; ++i) {
-            //    std::cout << "\nEnter the lower bound for dimension " << i + 1 << ": ";
-            //    std::cin >> lower_bounds[i];  
-            //    std::cout << "\nEnter the upper bound for dimension " << i + 1 << ": ";
-            //    std::cin >> upper_bounds[i];
-            //}
-            //bounds = {lower_bounds, upper_bounds};
-            std::cout<<"\n\nEnter lower bound: ";
-            std::cin>>lower;
-            std::cout<<"Enter upper bound: ";
-            std::cin>>upper;
-            for(int i=0;i<3;i++){// generate bound for each dimension
-                bounds.first.push_back(lower);
-                bounds.second.push_back(upper);
-            }//end for
-        }// end if lbfgsb
-        before = measure_memory();
-        std::vector<double> hv0 = {-1.0, 0.0, 0.0};
-        std::cout << "\n\nhelical_valley(-1.0, 0.0, 0.0) = " << helical_valley(hv0);
-        time = minimize(helical_valley, hv0, "Helical Valley", pop_size, max_gens, 3, algorithm, bounds);
-        after = measure_memory();
-        result = (after - before)/1024;
-        std::cout << "Memory usage during Helical Valley Optimization: " << result << " KB";
-
-        heli << algorithm << "," << time << "," << error << "," << result << "," << result/1024 << "\n";
-
-        error = fabs(global_min);
-        std::cout << "\nGlobal Minimum(1.0, 0.0, 0.0) = 0\n Error = "<<error<< "\n" << std::endl;
+        std::cout << "Memory usage during " << dim  <<  "D Rosenbrock Optimization: " << result << " KB";
+        long mb = result/1024;
+        if(dim >= 100) {
+            rosen << algorithm << "," << time << "," << error << "," << mb << "," << mb/1024 << "\n";
+        }else {
+            rosen << algorithm << "," << time << "," << error << "," << result << "," << mb << "\n";
+        }
+        //rosen << algorithm << "," << time << "," << error << "," << result << "," << result/1024 << "\n";
+        std::cout << "\nGlobal Minimum(1.0, 1.0,...,1.0) = 0\n Error = " <<error;
 
         std::cout << "\n\nKeep going? ";
         std::cin >> going;
@@ -108,8 +94,7 @@ int main() {
             done = true;
         }
     }//end while
-    rast.close();
-    heli.close();
+    rosen.close();
     return 0;
     /*
     std::vector<double> r0 = {-1.2, 2.0};
