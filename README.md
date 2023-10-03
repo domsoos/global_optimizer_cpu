@@ -4,15 +4,15 @@ HPC Research Project for Global Optimization
 
 To compile the program, run the following command:
 
-\`\`\`bash
+```bash
 make && ./main
-\`\`\`
+```
 
 Then, to generate a report, install R and Quarto then use:
 
-\`\`\`bash
+```bash
 quarto render memory.qmd
-\`\`\`
+```
 
 # Unconstrained Optimization Algorithm
 -   **Require:**
@@ -33,7 +33,7 @@ quarto render memory.qmd
     7.  $k = k + 1$
 4.  Return $x_k$ as the local minimum
 
-# Davidon--Fletcher--Powell update
+# Davidon-Fletcher-Powell update
 The primary goal of DFP is to update the approximation of the inverse of the Hessian matrix.
 The update formula is: 
 $$H_{k+1} = H_k + \frac{\delta x \delta x^T}{\delta x^T \delta g} - \frac{H_k \delta g \delta g^T H_k}{\delta g^T H_k \delta g}$$
@@ -42,7 +42,7 @@ positive rank-1 update: $$\frac{\delta x \delta x^T}{\delta x^T \delta g} $$
 
 negative rank-2 update: $$\frac{H_k \delta g \delta g^T H_k}{\delta g^T H_k \delta g} $$
 
-# Broyden--Fletcher--Goldfarb--Shanno update
+# Broyden-Fletcher-Goldfarb-Shanno update
 The BFGS method is another Quasi-Newton method that approximates the inverse of the Hessian using a combination of rank-1 updates.
 The formula is: $$H_{k+1} = \left(I - \frac{\delta x \delta g^T}{\delta x^T \delta g} \right) H_k \left(I - \frac{\delta g \delta x^T}{\delta x^T \delta g} \right) + \frac{\delta x \delta x^T}{\delta x^T \delta g}$$
 
