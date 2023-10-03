@@ -4,13 +4,13 @@ HPC Research Project for Global Optimization
 
 To compile the program, run the following command:
 
-```bash
+```
 make && ./main
 ```
 
 Then, to generate a report, install R and Quarto then use:
 
-```bash
+```
 quarto render memory.qmd
 ```
 
