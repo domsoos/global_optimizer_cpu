@@ -1,4 +1,5 @@
 #include "optimization.h"
+#include "dual.h"
 
 /*
  * Simple Inexact Line Search
