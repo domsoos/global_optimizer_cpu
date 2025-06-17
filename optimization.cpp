@@ -1,6 +1,114 @@
 #include "optimization.h"
 #include "dual.h"
 
+
+// cpu pso code to initialize the array of N * DIM
+template<typename FuncEval>
+void hostPSOInit(
+    FuncEval        FunctionEval,  // e.g. [&](const double* x){ return Function::evaluate(x); }
+    double          lower,
+    double          upper,
+    double*         hostPsoArray,  // output: length = N*DIM
+    int             N,
+    int             DIM,
+    int             PSO_ITERS = 10)
+{
+    // simple 64‑bit LCG for host randomness
+    uint64_t state = 1234;
+    auto rand01 = [&](){
+      state = state * 6364136223846793005ULL + 1;
+      return double((state >> 11) & ((1ULL<<53)-1)) / double(1ULL<<53);
+    };
+    auto randR = [&](double lo, double hi){
+            return lo + (hi - lo) * rand01();
+    };
+    //printf("before allocation\n");
+    // allocate arrays
+    double* X        = new double[N*DIM];
+    double* V        = new double[N*DIM];
+    double* pBestX   = new double[N*DIM];
+    double* pBestVal = new double[N];
+    double* gBestX   = new double[DIM];
+    double  gBestVal;
+    //printf("initialize positions, velocities, and pbs.\n");
+    // initialize positions, velocities, and personal bests
+    double vel_range = (upper - lower) * 0.1;
+    for (int i = 0; i < N; ++i) {
+        for (int d = 0; d < DIM; ++d) {
+            X[i*DIM + d]      = randR(lower, upper);
+            V[i*DIM + d]      = randR(-vel_range, vel_range);
+            pBestX[i*DIM + d] = X[i*DIM + d];
+        }
+        pBestVal[i] = FunctionEval(&X[i*DIM]);
+    if (i < 3) {  // print first 3 particles
+      printf("init particle %2d: X = [", i);
+      for (int d = 0; d < DIM; ++d)
+        printf(" %8.4f", X[i*DIM + d]);
+      printf(" ]  V = [");
+      for (int d = 0; d < DIM; ++d)
+        printf(" %8.4f", V[i*DIM + d]);
+      printf(" ]  f(pi)=%.4e\n", pBestVal[i]);
+    } }
+    // find initial global best
+    gBestVal = pBestVal[0];
+    for (int d = 0; d < DIM; ++d)
+        gBestX[d] = pBestX[d];
+    for (int i = 1; i < N; ++i) {
+        if (pBestVal[i] < gBestVal) {
+            gBestVal = pBestVal[i];
+            for (int d = 0; d < DIM; ++d)
+                gBestX[d] = pBestX[i*DIM + d];
+        }
+    }
+    printf(" initial gBestVal = %.4e at position [", gBestVal);
+    for (int d = 0; d < DIM; ++d)
+      printf(" %8.4f", gBestX[d]);
+    printf(" ]\n");
+    // pso  main loop
+    const double w = 0.7, c1 = 1.4, c2 = 1.4;
+    for (int it = 0; it < PSO_ITERS; ++it) {
+        for (int i = 0; i < N; ++i) {
+            for (int d = 0; d < DIM; ++d) {
+                double r1 = rand01(), r2 = rand01();
+                V[i*DIM + d] = w * V[i*DIM + d]
+                              + c1 * r1 * (pBestX[i*DIM + d] - X[i*DIM + d])
+                              + c2 * r2 * (gBestX[d]       - X[i*DIM + d]);
+                X[i*DIM + d] = X[i*DIM + d] + V[i*DIM + d];
+            }
+            double f = FunctionEval(&X[i*DIM]);
+            // personal best
+            if (f < pBestVal[i]) {
+                pBestVal[i] = f;
+                for (int d = 0; d < DIM; ++d)
+                    pBestX[i*DIM + d] = X[i*DIM + d];
+            }
+            // global best
+            if (f < gBestVal) {
+                gBestVal = f;
+                for (int d = 0; d < DIM; ++d)
+                    gBestX[d] = X[i*DIM + d];
+            }
+        }
+    }
+    // print the best‐ever solution found
+    printf(" final gBestVal = %.6e  at gBestX = [", gBestVal);
+    for (int d = 0; d < DIM; ++d)
+        printf(" %8.4f", gBestX[d]);
+    printf(" ]\n");
+
+    //  write final swarm positions back to hostPsoArray
+    for (int i = 0; i < N*DIM; ++i) {
+        hostPsoArray[i] = X[i];
+    }
+    // clean up 
+    delete[] X;
+    delete[] V;
+    delete[] pBestX;
+    delete[] pBestVal;
+    delete[] gBestX;
+}
+
+
 /*
  * Simple Inexact Line Search
  */
@@ -25,7 +133,6 @@ double line_search_simple(std::function<double(std::vector<double> &)> func, std
     }// end while
     return alpha;
 }// end line_search_simple
-
 
 /* Armijo Backtracking Line Search to find an appropriate step size alpha 
  * along the direction p at point x for the function func.
