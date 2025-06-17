@@ -146,3 +146,25 @@ std::vector<double> gradient(std::function<double(std::vector<double> &)> func, 
     return grad;
 }// end gradient
 
+
+template<typename Function, int DIM>
+void calculateGradientUsingAD(double *x, double *gradient) {
+    dual::DualNumber xDual[DIM];
+
+    for (int i = 0; i < DIM; ++i) { // // iterate through each dimension (vairbale)
+        xDual[i] = dual::DualNumber(x[i], 0.0);
+    }
+
+    // calculate the partial derivative of  each dimension
+    for (int i = 0; i < DIM; ++i) {
+        xDual[i].dual = 1.0; // derivative w.r.t. dimension i
+        dual::DualNumber result = Function::evaluate(xDual); // evaluate the function using AD
+        gradient[i] = result.dual; // store derivative
+        //printf("\nxDual[%d]: %f, grad[%d]: %f ",i,xDual[i].real,i,gradient[i]);
+        xDual[i].dual = 0.0;
+    }
+}
+
+
+
+

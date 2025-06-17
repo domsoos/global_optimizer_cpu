@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <chrono>
 
+#include "dual.h"
+
 double rand(double min, double max);
 int rand(int min, int max);
 long measure_memory();
