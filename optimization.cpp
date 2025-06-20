@@ -119,7 +119,7 @@ void hostPSOInit(
  * @param g      Gradient at x (size n).
  * @returns      Step length α ∈ (0,1] satisfying f(x+αp) ≤ f0 + c1 α gᵀp.
  */
-double line_search(std::function<double(std::vector<double>&)>& func,
+double line_search(const std::function<double(const std::vector<double>&)>& func,
                    double                                   f0,
                    const std::vector<double>&               x,
                    const std::vector<double>&               p,
@@ -152,43 +152,6 @@ double safe_divide(double numerator, double denominator, double default_value = 
     }
     return numerator / denominator;
 }
-
-
-/* The Broyden–Fletcher–Goldfarb–Shanno update
-void bfgs_update(std::vector<std::vector<double>>& H,
-                 std::vector<double> delta_x,
-                 std::vector<double> delta_g,
-                 double delta_dot) {
-    int n = delta_x.size();
-    std::vector<std::vector<double>> I(n, std::vector<double>(n, 0));
-    for (int i = 0; i < n; i++) {
-        I[i][i] = 1; // Identity Matrix
-    }
-
-    std::vector<std::vector<double>> term1 = outer_product(delta_x, delta_g);
-    for (int row = 0; row < term1.size(); row++) {
-        for (int col = 0; col < term1[row].size(); col++) {
-            term1[row][col] /= delta_dot;
-        }
-    }
-
-    std::vector<std::vector<double>> term1H = matmul(term1, H);
-    std::vector<std::vector<double>> termHterm1 = matmul(H, term1);
-
-    std::vector<std::vector<double>> term2 = outer_product(delta_x, delta_x);
-    for (int row = 0; row < term2.size(); row++) {
-        for (int col = 0; col < term2[row].size(); col++) {
-            term2[row][col] /= delta_dot;
-        }
-    }
-
-    for (int row = 0; row < H.size(); row++) {
-        for (int col = 0; col < H[row].size(); col++) {
-            H[row][col] = (I[row][col] - term1H[row][col]) * H[row][col] * (I[row][col] - termHterm1[row][col]) + term2[row][col];
-        }
-    }
-}
-*/
 
 
 // BFGS update: sequential, dynamic-dimension
@@ -270,7 +233,27 @@ void dfp_update(std::vector<std::vector<double>>& H,
     */
 }
 
-Result optimize(std::function<double(std::vector<double> &)> func, std::vector<double> x0, std::string algorithm,  double tol, int max_iter, std::pair<std::vector<double>,std::vector<double>> bounds) {
+Result optimize(const ADFunc &f_ad,
+    std::vector<double>       x0,
+    const std::string &       algorithm,
+    double                    tol,
+    int                       max_iter,
+    std::pair<std::vector<double>,std::vector<double>> bounds) {
+    /* real‐valued wrapper for line‐search
+    auto f_real = [&](std::vector<double> &xx){
+        int n = xx.size();
+        std::vector<dual::DualNumber> tmp(n);
+        for (int i = 0; i < n; ++i) tmp[i] = {xx[i], 0.0};
+        return f_ad(tmp).real;
+    };*/
+    auto f_real = [&](const std::vector<double>& xx) {
+	    int n = xx.size();
+	    std::vector<dual::DualNumber> tmp(n);
+	    for (int i = 0; i < n; ++i) tmp[i] = {xx[i], 0.0};
+	    return f_ad(tmp).real;
+    };
+
+	//const ADFunc & f_ad, std::vector<double> x0, std::string algorithm,  double tol, int max_iter, std::pair<std::vector<double>,std::vector<double>> bounds) {
     double min_value = std::numeric_limits<double>::max();
     std::vector<double> x = x0;
     double global_min = std::numeric_limits<double>::max();
@@ -280,7 +263,6 @@ Result optimize(std::function<double(std::vector<double> &)> func, std::vector<d
     result.fval         = 333777.0;
     result.gradientNorm = 69.0;
     result.coordinates.resize(x.size());
-    std::cout<< "yellow"<<std::endl;
     for (int d = 0; d < x.size(); ++d) {
         result.coordinates[d] = 0.0;
     }
@@ -294,14 +276,15 @@ Result optimize(std::function<double(std::vector<double> &)> func, std::vector<d
     }//end for
     std::vector<double> g;
     // Main loop
-    for (int i = 0; i < max_iter; i++) {
+    int i=0;
+    for (i = 0; i < max_iter; i++) {
         // Compute Gradient
-        g = gradient(func, x, 1e-7);
+        g = gradientAD(f_ad, x);//gradient(func, x, 1e-7);
 
         // Check if the length of gradient vector is less than our tolerance
-        if (norm(g) < 1e-12) { 
+        if (norm(g) < 1e-8) { 
         	std::cout << "converged" << std::endl;
-            min_value = std::min(min_value, func(x));
+            min_value = std::min(min_value, f_real(x));
             if (min_value < global_min) {
                 global_min = min_value;
                 //std::cout << "\nnorm(g): New Global Minimum: " << global_min << " with parameters:" <<std::endl;
@@ -313,6 +296,7 @@ Result optimize(std::function<double(std::vector<double> &)> func, std::vector<d
                 }
                 //return result;
             }//end if
+            result.iter = i;
             result.fval = min_value;
             result.status = 1;
             return result;
@@ -325,8 +309,9 @@ Result optimize(std::function<double(std::vector<double> &)> func, std::vector<d
         }// end for
 
         /*** Calculate optimal step size in the search direction p ***/
-        double f0 = func(x);
-        double alpha = line_search(func, f0, x, p, g); //
+        double f0 = f_real(x);
+
+        double alpha = line_search(f_real, f0, x, p, g); //
 
         // Update the current point x by taking a step of size alpha in the direction p.
         std::vector<double> x_new = x;
@@ -337,7 +322,7 @@ Result optimize(std::function<double(std::vector<double> &)> func, std::vector<d
         for (int j = 0; j < x.size(); j++) { delta_x[j] -= x[j];}// end for
 
         // Compute the difference in the gradient at the new point and the old point, delta_g.
-        std::vector<double> delta_g = gradient(func, x_new, 1e-7);
+        std::vector<double> delta_g = gradientAD(f_ad, x);//gradient(func, x_new, 1e-7);
         for (int j = 0; j < g.size(); j++) { delta_g[j] -= g[j];}// end for
 
         if (algorithm == "bfgs") {
@@ -349,9 +334,11 @@ Result optimize(std::function<double(std::vector<double> &)> func, std::vector<d
             dfp_update(H, delta_x, delta_g);
         }
         x = x_new;
-        min_value = std::min(min_value, func(x));
+        min_value = std::min(min_value, f_real(x));
         //}//end else
     }// end main loop
+
+    result.iter = i;
     result.status = 0;
     result.gradientNorm = norm(g);
     for (int i=0;i<=x.size();i++){
@@ -363,21 +350,22 @@ Result optimize(std::function<double(std::vector<double> &)> func, std::vector<d
 }// end dfp
 
 
-long minimize(std::function<double(std::vector<double> &)> func, std::vector<double> x0, std::string name, 
+Result minimize(const ADFunc &f_ad, std::vector<double> x0, std::string name, 
               int pop_size, int dim, std::string algorithm, std::pair<std::vector<double>, std::vector<double>> bounds) {
     global_min = std::numeric_limits<double>::max();
     auto start = std::chrono::high_resolution_clock::now();
     //auto final_population = genetic_algo(func, max_gens, pop_size, dim, x0, algorithm, bounds);
-    Result result = optimize(func,x0, algorithm, 1e-12, 2500, bounds);
+    Result result = optimize(f_ad,x0, algorithm, 1e-12, 2500, bounds);
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
     long time = duration.count();
+    result.time = time;
     std::cout << "\ntime: " << time << " ms" << std::endl;
     std::cout << "Predicted Global minimum for " << name << ": " << result.fval <<std::endl;
     std::cout << "at the coordinates: \n";
     for(int i=0;i<x0.size();i++) {
     	std::cout << "x["<<i<<"]: "<<std::scientific<<result.coordinates[i] << "\n";
     }
-    std::cout << std::endl;
-    return time;
+    std::cout << "\nin " << result.iter << " iterations." << std::endl;
+    return result;
 }

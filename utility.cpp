@@ -132,7 +132,7 @@ std::vector<std::vector<double>> outer_product(const std::vector<double>& v1, co
 }// end outer_product
 
 // Finite difference gradient calculation
-std::vector<double> gradient(std::function<double(std::vector<double> &)> func, std::vector<double> x, double h) {
+std::vector<double> gradientFD(std::function<double(std::vector<double> &)> func, std::vector<double> x, double h) {
     std::vector<double> grad(x.size(), 0);
     for (int i = 0; i < x.size(); i++) {
         double temp = x[i];
@@ -146,7 +146,7 @@ std::vector<double> gradient(std::function<double(std::vector<double> &)> func, 
     return grad;
 }// end gradient
 
-
+/*
 template<typename Function, int DIM>
 void calculateGradientUsingAD(double *x, double *gradient) {
     dual::DualNumber xDual[DIM];
@@ -164,6 +164,6 @@ void calculateGradientUsingAD(double *x, double *gradient) {
         xDual[i].dual = 0.0;
     }
 }
-
+*/
 
 

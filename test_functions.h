@@ -1,5 +1,11 @@
 #pragma once
 #include <vector>
+#include "dual.h"
+#include "fun.h"
+
+template<int DIM>
+dual::DualNumber rosenbrock_ad(const dual::DualNumber* x);
+
 
 double rosenbrock(std::vector<double>& x);
 double rosenbrock_multi(std::vector<double>& x);

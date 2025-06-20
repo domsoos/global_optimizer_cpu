@@ -6,9 +6,27 @@
 #include <fstream>
 #include <sstream>
 
+ADFunc makeRosenbAd(int dim) {
+    switch (dim) {
+      case 2:
+        return [](const std::vector<dual::DualNumber>& vx) {
+            return util::Rosenbrock<2>::evaluate(vx.data());
+        };
+      case 5:
+        return [](const std::vector<dual::DualNumber>& vx) {
+            return util::Rosenbrock<5>::evaluate(vx.data());
+        };
+      case 10:
+        return [](const std::vector<dual::DualNumber>& vx) {
+            return util::Rosenbrock<10>::evaluate(vx.data());
+        };
+      default:
+        throw std::runtime_error("Unsupported dimension for Rosenbrock AD");
+    }
+}
 int main() {
     int dim;
-    long before, after, result;
+    long before, after, memory;
     double error;
     char answer, going;
     bool done = false;
@@ -27,6 +45,8 @@ int main() {
     filenameStream << "memory_rosenbrock" << dim << ".csv";
     std::string filename = filenameStream.str();
     std::ofstream rosen(filename);
+
+    ADFunc f_ad = makeRosenbAd(dim);
     
     if(dim >= 100) {
         rosen << "Algorithm,Time,Error,MemoryMB,MemoryGB\n";
@@ -72,17 +92,18 @@ int main() {
             x0.push_back(2.0);
         }
         before = measure_memory();
-        auto time = minimize(rosenbrock_multi,x0,"Rosenbrock",0,dim, algorithm, bounds);
+        Result result = minimize(f_ad,x0,"Rosenbrock",0,dim, algorithm, bounds);
         //  rosenbrock_multi, x0,algorithm,1e-12,2500,bounds);
         after = measure_memory();
-        result = after - before;
-        error = fabs(global_min);
-        std::cout << "Memory usage during " << dim  <<  "D Rosenbrock Optimization: " << result << " KB";
-        long mb = result/1024;
+        memory = after - before;
+        error = result.fval;
+
+        std::cout << "Memory usage during " << dim  <<  "D Rosenbrock Optimization: " << memory << " KB";
+        long mb = memory/1024;
         if(dim >= 100) {
-            rosen << algorithm << "," << time << "," << error << "," << mb << "," << mb/1024 << "\n";
+            rosen << algorithm << "," << result.time << "," << error << "," << mb << "," << mb/1024 << "\n";
         }else {
-            rosen << algorithm << "," << time << "," << error << "," << result << "," << mb << "\n";
+            rosen << algorithm << "," << result.time << "," << error << "," << memory << "," << mb << "\n";
         }
         //rosen << algorithm << "," << time << "," << error << "," << result << "," << result/1024 << "\n";
         std::cout << "\nGlobal Minimum(1.0, 1.0,...,1.0) = 0\n Error = " <<error;
@@ -108,8 +129,6 @@ int main() {
     minimum = minimize(goldstein_price, gsp, "Gold-Stein Price", pop_size, max_gens, 2, algorithm);
     error = 3 - minimum;
     std::cout << "\nGlobal Minimum(0.0, -1.0) = 3\nError = "<<error;
-
-
     std::vector<double> easy = {1.1, 1.2, 1.3, 1.4};
     std::vector<double> w0 = {-3.0, -1.0, -3.0, -1.0};
     std::cout << "\n\nwoord(-3.0, -1.0, -3.0, -1.0) = " << woods(w0);

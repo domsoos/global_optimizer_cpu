@@ -1,15 +1,11 @@
 #pragma once
-#include "duals.cuh"
+#include "dual.h"
 
 namespace util {
 
-extern "C" {
-  __device__ __noinline__ void vector_add(const double*, const double*, double*, int);
-  __device__ __noinline__ void vector_scale(const double*, double, double*, int);
-}
 
 template<int DIM>
-__device__ dual::DualNumber rosenbrock(const dual::DualNumber* x) {
+dual::DualNumber rosenbrock(const dual::DualNumber* x) {
   dual::DualNumber sum(0.0, 0.0);
   for (int i = 0; i < DIM - 1; ++i) {
     dual::DualNumber t1 = dual::DualNumber(1.0, 0.0) - x[i];
@@ -20,7 +16,7 @@ __device__ dual::DualNumber rosenbrock(const dual::DualNumber* x) {
 }
 
 template<int DIM>
-__host__ __device__ double rosenbrock(const double* x) {
+double rosenbrock(const double* x) {
   double sum = 0.0;
   for (int i = 0; i < DIM - 1; ++i) {
     double t1 = 1.0 - x[i];
@@ -31,7 +27,7 @@ __host__ __device__ double rosenbrock(const double* x) {
 }
 
 template<int DIM>
-__device__ dual::DualNumber rastrigin(const dual::DualNumber* x) {
+dual::DualNumber rastrigin(const dual::DualNumber* x) {
   dual::DualNumber sum(10.0*DIM, 0.0);
   for (int i = 0; i < DIM; ++i) {
     sum = sum + ( x[i]*x[i]
@@ -41,7 +37,7 @@ __device__ dual::DualNumber rastrigin(const dual::DualNumber* x) {
 }
 
 template<int DIM>
-__host__ __device__ double rastrigin(const double* x) {
+double rastrigin(const double* x) {
   double sum = 10.0*DIM;
   for (int i = 0; i < DIM; ++i)
     sum += x[i]*x[i] - 10.0*std::cos(2.0*M_PI*x[i]);
@@ -53,7 +49,6 @@ __host__ __device__ double rastrigin(const double* x) {
 //          - exp\Bigl(\frac{1}{d}\sum_{i=1}^{d}\cos(2\pi x_i)\Bigr)
 //          + 20 + e
 template<int DIM>
-__device__
 dual::DualNumber ackley(const dual::DualNumber* x) {
     dual::DualNumber sum_sq = 0.0;
     dual::DualNumber sum_cos = 0.0;
@@ -67,7 +62,6 @@ dual::DualNumber ackley(const dual::DualNumber* x) {
 }
 
 template<int DIM>
-__host__ __device__
 double ackley(const double* x) {
     double sum_sq = 0.0;
     double sum_cos = 0.0;
@@ -83,32 +77,33 @@ double ackley(const double* x) {
 
 
 template<int DIM> struct Rosenbrock {
-  __device__ static dual::DualNumber evaluate(const dual::DualNumber* x) {
+  static dual::DualNumber evaluate(const dual::DualNumber* x) {
     return rosenbrock<DIM>(x);
   }
-  __host__ __device__ static double evaluate(const double* x) {
+  static double evaluate(const double* x) {
     return rosenbrock<DIM>(x);
   }
 };
 template<int DIM> struct Rastrigin {
-  __device__ static dual::DualNumber evaluate(const dual::DualNumber* x) {
+  static dual::DualNumber evaluate(const dual::DualNumber* x) {
     return rastrigin<DIM>(x);
   }
-  __host__ __device__ static double evaluate(const double* x) {
+  static double evaluate(const double* x) {
     return rastrigin<DIM>(x);
   }
 };
 template<int DIM> struct Ackley {
-  __device__ static dual::DualNumber evaluate(const dual::DualNumber* x) {
+  static dual::DualNumber evaluate(const dual::DualNumber* x) {
     return ackley<DIM>(x);
   }
-  __host__ __device__ static double evaluate(const double* x) {
+  static double evaluate(const double* x) {
     return ackley<DIM>(x);
   }
 };
 
+/*
 template<typename Function, int DIM>
-__device__ void calculateGradientUsingAD(double *x, double *gradient) {
+void calculateGradientUsingAD(double *x, double *gradient) {
     dual::DualNumber xDual[DIM];
 
     for (int i = 0; i < DIM; ++i) { // // iterate through each dimension (vairbale)
@@ -124,6 +119,7 @@ __device__ void calculateGradientUsingAD(double *x, double *gradient) {
         xDual[i].dual = 0.0;
     }
 }
+*/
 
 
 } // namespace util
