@@ -23,7 +23,7 @@ std::vector<Individual> init_population(std::function<double(std::vector<double>
             genes.push_back(random);
         }//end for
         ind.genes = genes;
-        ind.fitness = optimize(func, ind.genes, algorithm, 1e-12, 2500, bounds); 
+        //ind.fitness = optimize(func, ind.genes, algorithm, 1e-12, 2500, bounds); 
         population.push_back(ind);
     }
     return population;
@@ -57,8 +57,8 @@ std::vector<Individual> crossover(std::function<double(std::vector<double> &)> f
     offspring[1].genes = {ind2.genes[0], ind1.genes[1]};
 
     // Evaluate the fitness of each offspring from the parents
-    offspring[0].fitness = optimize(func, offspring[0].genes,algorithm, 1e-12, 2500, bounds);
-    offspring[1].fitness = optimize(func, offspring[1].genes,algorithm, 1e-12, 2500, bounds);
+    //offspring[0].fitness = optimize(func, offspring[0].genes,algorithm, 1e-12, 2500, bounds);
+    //offspring[1].fitness = optimize(func, offspring[1].genes,algorithm, 1e-12, 2500, bounds);
 
     return offspring;
 }// end crossover

@@ -72,7 +72,7 @@ int main() {
             x0.push_back(2.0);
         }
         before = measure_memory();
-        auto time = minimize(rosenbrock_multi,x0,"Rosenbrock",0,0,dim, algorithm, bounds);
+        auto time = minimize(rosenbrock_multi,x0,"Rosenbrock",0,dim, algorithm, bounds);
         //  rosenbrock_multi, x0,algorithm,1e-12,2500,bounds);
         after = measure_memory();
         result = after - before;

@@ -47,12 +47,11 @@ double optimize(
 );
 
 long minimize(
-    const std::function<double(const std::vector<double>&)>& func,
+    std::function<double(std::vector<double>&)> func,
     std::vector<double> x0,
-    const std::string& name,
+    std::string name,
     int pop_size,
-    int max_gens,
     int dim,
-    const std::string& algorithm,
+    std::string algorithm,
     std::pair<std::vector<double>, std::vector<double>> bounds
 );

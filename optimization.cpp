@@ -277,8 +277,8 @@ double optimize(std::function<double(std::vector<double> &)> func, std::vector<d
     // L-BFGS-B init
     std::deque<std::vector<double>> s_history, y_history;
     std::deque<double> rho_history;
-    double gamma_k = 1.0;  // initial scaling factor
-    int m = 3;  // history size
+    //double gamma_k = 1.0;  // initial scaling factor
+    //int m = 3;  // history size
 
     // Initialize the Hessian matrix to identity matrix
     std::vector<std::vector<double>> H(x0.size(), std::vector<double>(x0.size(), 0));
@@ -293,6 +293,7 @@ double optimize(std::function<double(std::vector<double> &)> func, std::vector<d
 
         // Check if the length of gradient vector is less than our tolerance
         if (norm(g) < 1e-6) { 
+        	std::cout << "converged" << std::endl;
             min_value = std::min(min_value, func(x));
             if (min_value < global_min) {
                 global_min = min_value;
@@ -373,7 +374,7 @@ double optimize(std::function<double(std::vector<double> &)> func, std::vector<d
 
 
 long minimize(std::function<double(std::vector<double> &)> func, std::vector<double> x0, std::string name, 
-              int pop_size, int max_gens, int dim, std::string algorithm, std::pair<std::vector<double>, std::vector<double>> bounds) {
+              int pop_size, int dim, std::string algorithm, std::pair<std::vector<double>, std::vector<double>> bounds) {
     global_min = std::numeric_limits<double>::max();
     auto start = std::chrono::high_resolution_clock::now();
     //auto final_population = genetic_algo(func, max_gens, pop_size, dim, x0, algorithm, bounds);
