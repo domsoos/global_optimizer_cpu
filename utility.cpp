@@ -167,4 +167,3 @@ void calculateGradientUsingAD(double *x, double *gradient) {
 
 
 
-
