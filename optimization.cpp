@@ -109,6 +109,44 @@ void hostPSOInit(
 }
 
 
+
+/**
+ * Back-tracking line search (Armijo condition).
+ *
+ * @param func   Objective: R^n → R, accepts x by const-ref.
+ * @param f0     f(x) at the current iterate.
+ * @param x      Current point (size n).
+ * @param p      Search direction (size n).
+ * @param g      Gradient at x (size n).
+ * @returns      Step length α ∈ (0,1] satisfying f(x+αp) ≤ f0 + c1 α gᵀp.
+ */
+double line_search(const std::function<double(const std::vector<double>&)>& func,
+                   double                                   f0,
+                   const std::vector<double>&               x,
+                   const std::vector<double>&               p,
+                   const std::vector<double>&               g)
+{
+    const double c1    = 0.3;
+    double       alpha = 1.0;
+    double       ddir  = dot_product(g, p);
+
+    std::vector<double> xTemp(x.size());
+    // limit to max 20 halving steps
+    for (int iter = 0; iter < 20; ++iter) {
+        // xTemp = x + alpha * p
+        for (size_t j = 0; j < x.size(); ++j) {
+            xTemp[j] = x[j] + alpha * p[j];
+        }
+        double f1 = func(xTemp);
+        // Armijo condition
+        if (f1 <= f0 + c1 * alpha * ddir) {
+            break;
+        }
+        alpha *= 0.5;
+    }
+    return alpha;
+}
+
 /*
  * Simple Inexact Line Search
  */
