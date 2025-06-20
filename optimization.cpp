@@ -270,52 +270,54 @@ void dfp_update(std::vector<std::vector<double>>& H,
     */
 }
 
-double optimize(std::function<double(std::vector<double> &)> func, std::vector<double> x0, std::string algorithm,  double tol, int max_iter, std::pair<std::vector<double>,std::vector<double>> bounds) {
+Result optimize(std::function<double(std::vector<double> &)> func, std::vector<double> x0, std::string algorithm,  double tol, int max_iter, std::pair<std::vector<double>,std::vector<double>> bounds) {
     double min_value = std::numeric_limits<double>::max();
     std::vector<double> x = x0;
+    double global_min = std::numeric_limits<double>::max();
 
-    // L-BFGS-B init
-    std::deque<std::vector<double>> s_history, y_history;
-    std::deque<double> rho_history;
-    //double gamma_k = 1.0;  // initial scaling factor
-    //int m = 3;  // history size
+    Result result;
+    result.status       = -1;     // assume “not converged” by default
+    result.fval         = 333777.0;
+    result.gradientNorm = 69.0;
+    result.coordinates.resize(x.size());
+    std::cout<< "yellow"<<std::endl;
+    for (int d = 0; d < x.size(); ++d) {
+        result.coordinates[d] = 0.0;
+    }
+    result.iter = -1;
+   
 
     // Initialize the Hessian matrix to identity matrix
     std::vector<std::vector<double>> H(x0.size(), std::vector<double>(x0.size(), 0));
     for (int i = 0; i < x0.size(); i++) {
         H[i][i] = 1; // along the diagonals, place 1's to create Identity Matrix
     }//end for
-    
+    std::vector<double> g;
     // Main loop
     for (int i = 0; i < max_iter; i++) {
         // Compute Gradient
-        std::vector<double> g = gradient(func, x, 1e-7);
+        g = gradient(func, x, 1e-7);
 
         // Check if the length of gradient vector is less than our tolerance
-        if (norm(g) < 1e-6) { 
+        if (norm(g) < 1e-12) { 
         	std::cout << "converged" << std::endl;
             min_value = std::min(min_value, func(x));
             if (min_value < global_min) {
                 global_min = min_value;
                 //std::cout << "\nnorm(g): New Global Minimum: " << global_min << " with parameters:" <<std::endl;
-                best_params = {};
+                //best_params = {};
                 for (int i=0;i<=x.size();i++){
-                    best_params.push_back(x[i]);
+                    //best_params.push_back(x[i]);
+                    result.coordinates[i] = x[i];
                 //    std::cout<< "x["<<i<<"]: " << best_params[i]<<std::endl;
                 }
-                return min_value;
+                //return result;
             }//end if
-            return global_min;
+            result.fval = min_value;
+            result.status = 1;
+            return result;
         }// end if
 
-        /*if(algorithm.find("lbfgs") != std::string::npos) {
-            //std::pair<std::vector<double>, std::vector<double>> result = lbfgsb_step(func,algorithm,x0,g,bounds,s_history, y_history, rho_history, gamma_k, m);
-            //auto [x_new, g_new] = lbfgsb_step(func, x, g, s_history, y_history, rho_history, gamma_k, m);
-            //std::vector<double> x_new = result.first;
-            //std::vector<double> g_new = result.second;
-            //x = x_new;
-            //g = g_new;
-        } else {*/
         // Compute Search Direction
         std::vector<double> p = matvec_product(H, g);
         for (auto &val : p) {
@@ -323,20 +325,8 @@ double optimize(std::function<double(std::vector<double> &)> func, std::vector<d
         }// end for
 
         /*** Calculate optimal step size in the search direction p ***/
-        // Simple Inexact Line Search
-        //double alpha = line_search_simple(func, x, p, 0.5, 0.5);
-        //double alpha = 0.01;
-        // Armijo condition,. alpha, c, tau
-        //double alpha = line_search(func, x, p, 0.5, 0.5, 0.5);
-        //double alpha = simple_backtracking(func, x,p, 0.5, 0.5);
-        // Cubic interpolation
-        //double alpha = cubicInterpolationLineSearch(func, x, p, x[0]);
-        // Quadratic interpolation
         double f0 = func(x);
         double alpha = line_search(func, f0, x, p, g); //
-        // quadratic_line_search(func, x, p);
-        // Quadratic interpolation same as MnLineSearch in Minuit2
-        //double alpha = mnLineSearch(func, x, p);
 
         // Update the current point x by taking a step of size alpha in the direction p.
         std::vector<double> x_new = x;
@@ -350,11 +340,9 @@ double optimize(std::function<double(std::vector<double> &)> func, std::vector<d
         std::vector<double> delta_g = gradient(func, x_new, 1e-7);
         for (int j = 0; j < g.size(); j++) { delta_g[j] -= g[j];}// end for
 
-
         if (algorithm == "bfgs") {
             // Update the inverse Hessian approximation using BFGS
             double delta_dot = dot_product(delta_x, delta_g);
-
             bfgs_update_seq(H, delta_x, delta_g, delta_dot);
         } else {
             // Update the approximation of the inverse Hessian using DFP
@@ -364,12 +352,14 @@ double optimize(std::function<double(std::vector<double> &)> func, std::vector<d
         min_value = std::min(min_value, func(x));
         //}//end else
     }// end main loop
-
-    //std::cout << "Maximum iterations reached without convergence.\nOptimized parameters:\n";
-    //for (double param : x) {
-    //    std::cout << param << "\n";
-    //}// end for
-    return min_value; 
+    result.status = 0;
+    result.gradientNorm = norm(g);
+    for (int i=0;i<=x.size();i++){
+        result.coordinates[i] = x[i];
+        //    std::cout<< "x["<<i<<"]: " << best_params[i]<<std::endl;
+    }
+    result.fval = min_value;
+    return result; 
 }// end dfp
 
 
@@ -378,12 +368,16 @@ long minimize(std::function<double(std::vector<double> &)> func, std::vector<dou
     global_min = std::numeric_limits<double>::max();
     auto start = std::chrono::high_resolution_clock::now();
     //auto final_population = genetic_algo(func, max_gens, pop_size, dim, x0, algorithm, bounds);
-    double minima = optimize(func, x0, algorithm, 1e-12, 2500, bounds);
+    Result result = optimize(func,x0, algorithm, 1e-12, 2500, bounds);
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
     long time = duration.count();
     std::cout << "\ntime: " << time << " ms" << std::endl;
-    std::cout << "Predicted Global minimum for " << name << ": " << minima <<std::endl;
+    std::cout << "Predicted Global minimum for " << name << ": " << result.fval <<std::endl;
+    std::cout << "at the coordinates: \n";
+    for(int i=0;i<x0.size();i++) {
+    	std::cout << "x["<<i<<"]: "<<std::scientific<<result.coordinates[i] << "\n";
+    }
     std::cout << std::endl;
     return time;
 }

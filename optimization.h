@@ -4,6 +4,15 @@
 #include "test_functions.h"
 #include "genetic.h"
 
+struct Result {
+    int dim;
+    int status; // 1 if converged, else if stopped_bc_someone_flipped_the_flag: 2, else 0
+    double fval; // function value
+    double gradientNorm;
+    std::vector<double> coordinates;
+    int iter;
+};
+
 // Line Search methods
 //double simple_backtracking(std::function<double(std::vector<double> &)> func, std::vector<double> x, std::vector<double> p, double alpha, double tau);
 //double line_search_simple(std::function<double(std::vector<double> &)> func, std::vector<double> x, std::vector<double> p, double alpha, double tau);
