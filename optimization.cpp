@@ -31,15 +31,16 @@ hostPSOInit(const std::function<double(const double*)>& f_eval,
             pBestX[i*DIM + d] = X[i*DIM + d];
         }
         pBestVal[i] = f_eval(&X[i*DIM]);
-    if (i < 3) {  // print first 3 particles
-      printf("init particle %2d: X = [", i);
-      for (int d = 0; d < DIM; ++d)
-        printf(" %8.4f", X[i*DIM + d]);
-      printf(" ]  V = [");
-      for (int d = 0; d < DIM; ++d)
-        printf(" %8.4f", V[i*DIM + d]);
-      printf(" ]  f(pi)=%.4e\n", pBestVal[i]);
-    } }
+	    /*if (i < 3) {  // print first 3 particles
+	      printf("init particle %2d: X = [", i);
+	      for (int d = 0; d < DIM; ++d)
+	        printf(" %8.4f", X[i*DIM + d]);
+	      printf(" ]  V = [");
+	      for (int d = 0; d < DIM; ++d)
+	        printf(" %8.4f", V[i*DIM + d]);
+	      printf(" ]  f(pi)=%.4e\n", pBestVal[i]);
+	    }*/
+    }
     // find initial global best
     gBestVal = pBestVal[0];
     for (int d = 0; d < DIM; ++d)
@@ -56,7 +57,8 @@ hostPSOInit(const std::function<double(const double*)>& f_eval,
       printf(" %8.4f", gBestX[d]);
     printf(" ]\n");
     // pso  main loop
-    const double w = 0.7, c1 = 1.4, c2 = 1.4;
+    //const double w = 0.7, c1 = 1.4, c2 = 1.4;
+    const double w = 0.5, c1 = 1.2, c2 = 1.5;
     for (int it = 0; it < PSO_ITERS; ++it) {
         for (int i = 0; i < N; ++i) {
             for (int d = 0; d < DIM; ++d) {
@@ -87,13 +89,7 @@ hostPSOInit(const std::function<double(const double*)>& f_eval,
         printf(" %8.4f", gBestX[d]);
     printf(" ]\n");
 
-    //  write final swarm positions back to hostPsoArray
-    /*for (int i = 0; i < N*DIM; ++i) {
-        hostPsoArray[i] = X[i];
-    }*/
-
-    // clean up 
-    //delete[] X;
+    // clean up except swarm coordinates
     delete[] V;
     delete[] pBestX;
     delete[] pBestVal;
@@ -268,7 +264,7 @@ Result optimize(const ADFunc &f_ad,
     }//end for
     std::vector<double> g;
     // Main loop
-    int i=0;
+    int i;
     for (i = 0; i < max_iter; i++) {
         // Compute Gradient
         g = gradientAD(f_ad, x);//gradient(func, x, 1e-7);
@@ -357,29 +353,29 @@ Result run_minimizers(const ADFunc &f_ad, std::string name, int pso_iter, int bf
     Result global_best;
     global_best.fval = global_min;
     std::vector<double> swarm;
+    float ms_pso = 0.0f;
+    float bfgs_time = 0.0f;
     if (pso_iter > 0) {
     	auto start = std::chrono::high_resolution_clock::now();
         swarm = hostPSOInit(f_eval,lower,upper,pop_size, dim,pso_iter);
         auto stop = std::chrono::high_resolution_clock::now();
     	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-    	total_time += duration.count();
+    	ms_pso = duration.count();
+    	total_time += ms_pso;
     }
-
     for(int i=0;i<pop_size;i++) {
     	std::vector<double> x0(dim);
     	if (!swarm.empty()) {
-    		for(int d=0;d<dim;++d) 
-    			x0[d] = swarm[i*dim + d];
+    		for(int d=0;d<dim;++d) x0[d] = swarm[i*dim + d];
     	} else {
-    		for (int d=0; d<dim; ++d) 
-    			x0[d] = uniform_rand(lower, upper);
+    		for(int d=0;d<dim;++d) x0[d] = uniform_rand(lower, upper);
     	}
     	auto start = std::chrono::high_resolution_clock::now();
-    	Result result = optimize(f_ad,x0,algorithm,tolerance, 10000);
+    	Result result = optimize(f_ad,x0,algorithm,tolerance,bfgs_iter);
     	auto stop = std::chrono::high_resolution_clock::now();
     	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-    	result.time = duration.count();
-    	total_time += result.time;
+    	total_time += duration.count();
+    	result.idx = i;
     	if (result.fval < global_min) {
     		global_best = result;
     	}
@@ -392,13 +388,15 @@ Result run_minimizers(const ADFunc &f_ad, std::string name, int pso_iter, int bf
     	}
     }
     //auto final_population = genetic_algo(func, max_gens, pop_size, dim, x0, algorithm, bounds);
-
+    global_best.time = total_time;
     std::cout << "\ntotal time: " << total_time << " ms" << std::endl;
-    std::cout << "Best Particle" << name << ": " << global_best.fval <<std::endl;
+    std::cout << "Best Particle for " << name << " function:\n" << global_best.fval <<std::endl;
     std::cout << "at the coordinates: \n";
     for(int i=0;i<global_best.coordinates.size();i++) {
     	std::cout << "x["<<i<<"]: "<<std::scientific<<global_best.coordinates[i] << "\n";
     }
     std::cout << "\nin " << global_best.iter << " iterations." << std::endl;
+    double error = util::calculate_euclidean(global_best.coordinates, name);
+    util::append_results_2_tsv(dim, pop_size,name,0.0/*ms_init*/,0.0/*ms_pso*/,0.0/*ms_opt*/,total_time, bfgs_iter, pso_iter, error,global_best.fval, global_best.coordinates, global_best.idx, global_best.status, global_best.gradientNorm);
     return global_best;
 }
