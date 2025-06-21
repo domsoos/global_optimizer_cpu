@@ -3,12 +3,26 @@ HPC Research Project for Global Optimization
 
 The full report can be found [here](https://rpubs.com/domsoos/1091304)
 
-To compile the program, run the following command:
+To compile the program just run make in the root of the repo:
+```bash
+make
+``` 
+Once the library is built, the executable takes the following 8 argument:  
+argv[1] =  lower_bound  
+argv[2] =  upper_bound  
+argv[3] =  bfgs_maxiter  
+argv[4] =  pso_iters  
+argv[5] =  number of required converged particles  
+argv[6] =  number_of_optimizations  
+argv[7] = tolerance  
+argv[8] = seed   
 
+For example: 
+```bash
+./main -5.12 5.12 10000 10 100 131072 1e-6 12345
 ```
-make && ./main
-```
-The program will ask how many dimensions the user would like to use the Rosenbrock function. Then the user have to choose the type of algorithm to run.      
+
+The program will ask which function to use and how many dimensions. Currently, we only have BFGS activated.
 
 To generate a resource usage report, install R and Quarto then use:
 ```
