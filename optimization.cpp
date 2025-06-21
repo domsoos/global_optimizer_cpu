@@ -3,19 +3,19 @@
 
 
 // cpu pso code to initialize the array of N * DIM
-template<typename FuncEval>
-void hostPSOInit(
-    FuncEval        FunctionEval,  // e.g. [&](const double* x){ return Function::evaluate(x); }
+//template<typename FuncEval>
+std::vector<double>
+hostPSOInit(const std::function<double(const double*)>& f_eval,
     double          lower,
     double          upper,
-    double*         hostPsoArray,  // output: length = N*DIM
     int             N,
     int             DIM,
     int             PSO_ITERS = 10)
 {
     //printf("before allocation\n");
     // allocate arrays
-    double* X        = new double[N*DIM];
+    std::vector<double> X(N*DIM);
+    //double* X        = new double[N*DIM];
     double* V        = new double[N*DIM];
     double* pBestX   = new double[N*DIM];
     double* pBestVal = new double[N];
@@ -30,7 +30,7 @@ void hostPSOInit(
             V[i*DIM + d]      = uniform_rand(-vel_range, vel_range);
             pBestX[i*DIM + d] = X[i*DIM + d];
         }
-        pBestVal[i] = FunctionEval(&X[i*DIM]);
+        pBestVal[i] = f_eval(&X[i*DIM]);
     if (i < 3) {  // print first 3 particles
       printf("init particle %2d: X = [", i);
       for (int d = 0; d < DIM; ++d)
@@ -66,7 +66,7 @@ void hostPSOInit(
                               + c2 * r2 * (gBestX[d]       - X[i*DIM + d]);
                 X[i*DIM + d] = X[i*DIM + d] + V[i*DIM + d];
             }
-            double f = FunctionEval(&X[i*DIM]);
+            double f = f_eval(&X[i*DIM]);
             // personal best
             if (f < pBestVal[i]) {
                 pBestVal[i] = f;
@@ -88,15 +88,17 @@ void hostPSOInit(
     printf(" ]\n");
 
     //  write final swarm positions back to hostPsoArray
-    for (int i = 0; i < N*DIM; ++i) {
+    /*for (int i = 0; i < N*DIM; ++i) {
         hostPsoArray[i] = X[i];
-    }
+    }*/
+
     // clean up 
-    delete[] X;
+    //delete[] X;
     delete[] V;
     delete[] pBestX;
     delete[] pBestVal;
     delete[] gBestX;
+    return X;
 }
 
 
@@ -339,22 +341,40 @@ Result optimize(const ADFunc &f_ad,
     return result; 
 }// end dfp
 
-
 Result run_minimizers(const ADFunc &f_ad, std::string name, int pso_iter, int bfgs_iter, 
     int pop_size, int dim,int seed, int converged, double tolerance, std::string algorithm,double lower,double upper) {
     global_min = std::numeric_limits<double>::max();
+    
+    // wrap f_ad into a simple double(const double*) function:
+    auto f_eval = [&](const double* x) {
+        std::vector<dual::DualNumber> xx(dim);
+        for (int d = 0; d < dim; ++d) xx[d] = { x[d], 0.0 };
+        return f_ad(xx).real;
+    };
+
     long total_time = 0;
     int converged_counter = 0;
     Result global_best;
     global_best.fval = global_min;
-    for(int i=0;i<pop_size;i++) {
-    	std::vector<double> x0;
+    std::vector<double> swarm;
+    if (pso_iter > 0) {
     	auto start = std::chrono::high_resolution_clock::now();
-        for(int d=0;d<dim;++d){
-            x0.push_back(uniform_rand(lower,upper));
-            //std::cout << "x["<<d<<"]: "<<x0[d]<<"  ";
-        }
-        //std::cout << std::endl;
+        swarm = hostPSOInit(f_eval,lower,upper,pop_size, dim,pso_iter);
+        auto stop = std::chrono::high_resolution_clock::now();
+    	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    	total_time += duration.count();
+    }
+
+    for(int i=0;i<pop_size;i++) {
+    	std::vector<double> x0(dim);
+    	if (!swarm.empty()) {
+    		for(int d=0;d<dim;++d) 
+    			x0[d] = swarm[i*dim + d];
+    	} else {
+    		for (int d=0; d<dim; ++d) 
+    			x0[d] = uniform_rand(lower, upper);
+    	}
+    	auto start = std::chrono::high_resolution_clock::now();
     	Result result = optimize(f_ad,x0,algorithm,tolerance, 10000);
     	auto stop = std::chrono::high_resolution_clock::now();
     	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
