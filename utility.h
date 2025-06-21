@@ -16,6 +16,10 @@ extern std::random_device rd;
 extern std::mt19937      rng; 
 double uniform_rand(double min, double max);
 
+namespace util {
+	double calculate_euclidean(std::vector<double> coordinates,std::string fname);
+}
+
 extern double global_min;
 extern std::vector<double> best_params;
 

@@ -19,7 +19,7 @@ std::vector<Individual> init_population(std::function<double(std::vector<double>
         //ind.genes = x0;
         std::vector<double> genes;
         for (int i=0; i<=dim; i++){
-            double random = static_cast<double>(rand(lower, upper));
+            double random = static_cast<double>(uniform_rand(lower, upper));
             genes.push_back(random);
         }//end for
         ind.genes = genes;
@@ -66,7 +66,7 @@ std::vector<Individual> crossover(std::function<double(std::vector<double> &)> f
 // Mutation function
 void mutate(Individual &ind) {
     // with 15% probability
-    if (rand(0, 1) < 0.15) {
+    if (uniform_rand(0.0, 1.0) < 0.15) {
         // mutate one of the genes by adding a small random value between -0.25 and 0.25
         ind.genes[uniform_rand(0, ind.genes.size() - 1)] += uniform_rand(-0.25, 0.25); 
     }// end if

@@ -46,7 +46,20 @@ ADFunc makeTestFunc(const std::string &name, int dim) {
 }
 
 
-int main() {
+int main(int argc, char* argv[]) {
+	if (argc != 9) {
+	 std::cerr << "Usage: " << argv[0] << " <lower_bound> <upper_bound> <max_iter> <pso_iters> <converged> <number_of_optimizations> <tolerance> <seed>\n";
+        return 1;
+    }
+    double lower = std::atof(argv[1]);
+    double upper = std::atof(argv[2]);   	
+    int bfgs_iter = std::stoi(argv[3]);
+    int pso_iters = std::stoi(argv[4]);
+    int requiredConverged = std::stoi(argv[5]);
+    int swarm_size = std::stoi(argv[6]);
+    double tolerance = std::stod(argv[7]);
+    int seed = std::stoi(argv[8]);
+
 	std::cout << "Which function? [rosenbrock|rastrigin|ackley|goldstein]: ";
     std::string fname; std::cin >> fname;
     std::cout << "Dimension: "; int dim; std::cin >> dim;
@@ -54,82 +67,46 @@ int main() {
 
     long before, after, memory;
     double error;
-    char answer, going;
+    char going;
     bool done = false;
-
-    double lower, upper;
-    std::vector<double> lower_bounds, upper_bounds;
-    std::pair<std::vector<double>, std::vector<double>> bounds;
 
     std::string algorithm;
 
     std::cout << "\n\nMultidimensional Optimization" << std::endl;
 
     std::ostringstream filenameStream;
-    filenameStream << "memory_rosenbrock" << dim << ".csv";
+    filenameStream << "zeus_" << dim << "d_serialresults.tsv";
     std::string filename = filenameStream.str();
     std::ofstream rosen(filename);
 
     //ADFunc f_ad = makeRosenbAd(dim);
     
     if(dim >= 100) {
-        rosen << "Algorithm,Time,Error,MemoryMB,MemoryGB\n";
+        rosen << "fun\ttime\terror\tmemoryMB\temoryGB\n";
     }else {
-        rosen << "Algorithm,Time,Error,MemoryKB,MemoryMB\n";
+        rosen << "fun\ttime\terror\tmemoryKB\temoryMB\n";
     }
 
     while(!done) {
-        std::cout << "\nChoose the algorithm"<<std::endl;;
-        std::cout << "Use BFGS? ";
-        std::cin >> answer;
-        if (std::tolower(answer) == 'y') {
-            char lbfgs, box;
-            std::cout << "Limited memory variant - L-BFGS? ";
-            std::cin >> lbfgs;
-            if (std::tolower(lbfgs) == 'y') {
-                std::cout << "bounded? ";
-                std::cin >> box;
-                if(std::tolower(box) == 'y') {
-                    algorithm = "lbfgsb";
-                } else {
-                    algorithm = "lbfgs";
-                }
-            } else {
-                algorithm = "bfgs";
-            }
-        }
-        else { algorithm = "dfp";}
+    	algorithm = "bfgs";
 
-        if (algorithm  == "lbfgsb"){
-            std::cout<<"Enter lower bound: ";
-            std::cin>>lower;
-            std::cout<<"Enter upper bound: ";
-            std::cin>>upper;
-            for(int i=0;i<2;i++){ // generate bound for each dimension
-                bounds.first.push_back(lower);
-                bounds.second.push_back(upper);
-            }//end for
-        }// end if lbfgsb
-
-        std::vector<double> x0;
-        for(int i=0;i<dim;i++){
-            x0.push_back(uniform_rand(-5.0, 5.0));
-        }
         before = measure_memory();
-        Result result = run_minimizers(f_ad,x0,"Rosenbrock",0,dim, algorithm, bounds);
+        Result result = run_minimizers(f_ad,"Rosenbrock",pso_iters,bfgs_iter,swarm_size,dim,seed, requiredConverged, tolerance, algorithm, lower, upper);
         //  rosenbrock_multi, x0,algorithm,1e-12,2500,bounds);
         after = measure_memory();
         memory = after - before;
-        error = result.fval;
+        //error = result.fval;
+        error = util::calculate_euclidean(result.coordinates, fname);
 
         std::cout << "Memory usage during " << dim  <<  "D Rosenbrock Optimization: " << memory << " KB";
         long mb = memory/1024;
+        std::string tab = "\t";
         if(dim >= 100) {
-            rosen << algorithm << "," << result.time << "," << error << "," << mb << "," << mb/1024 << "\n";
-        }else {
-            rosen << algorithm << "," << result.time << "," << error << "," << memory << "," << mb << "\n";
+            rosen << algorithm << tab << result.time << tab << error << tab << mb << tab << mb/1024 << "\n";
+        } else {
+            rosen << algorithm << tab << result.time << tab << error << tab << memory << tab << mb << "\n";
         }
-        //rosen << algorithm << "," << time << "," << error << "," << result << "," << result/1024 << "\n";
+        //rosen << algorithm << tab << time << tab << error << tab << result << tab << result/1024 << "\n";
         std::cout << "\nGlobal Minimum(1.0, 1.0,...,1.0) = 0\n Error = " <<error;
 
         std::cout << "\n\nKeep going? ";

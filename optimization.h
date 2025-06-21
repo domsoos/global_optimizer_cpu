@@ -36,17 +36,15 @@ Result optimize(
     const ADFunc &f_ad,
     std::vector<double> x0,
     const std::string& algorithm,
-    double tol,
-    int max_iter,
-    std::pair<std::vector<double>, std::vector<double>> bounds
+    double tolerance,
+    int max_iter
 );
 
 Result run_minimizers(
     const ADFunc &f_ad,
-    std::vector<double> x0,
-    std::string name,
+    std::string name, int pso_iter,int bfgs_iter,
     int pop_size,
-    int dim,
-    std::string algorithm,
-    std::pair<std::vector<double>, std::vector<double>> bounds
+    int dim,int seed,
+    int converged, double tolerance,
+    std::string algorithm,double lower, double upper
 );

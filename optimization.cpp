@@ -228,8 +228,7 @@ Result optimize(const ADFunc &f_ad,
     std::vector<double>       x0,
     const std::string &       algorithm,
     double                    tol,
-    int                       max_iter,
-    std::pair<std::vector<double>,std::vector<double>> bounds) {
+    int                       max_iter) {
     /* real‐valued wrapper for line‐search
     auto f_real = [&](std::vector<double> &xx){
         int n = xx.size();
@@ -280,7 +279,7 @@ Result optimize(const ADFunc &f_ad,
                 global_min = min_value;
                 //std::cout << "\nnorm(g): New Global Minimum: " << global_min << " with parameters:" <<std::endl;
                 //best_params = {};
-                for (int i=0;i<=x.size();i++){
+                for (int i=0;i<x.size();i++){
                     //best_params.push_back(x[i]);
                     result.coordinates[i] = x[i];
                 //    std::cout<< "x["<<i<<"]: " << best_params[i]<<std::endl;
@@ -332,7 +331,7 @@ Result optimize(const ADFunc &f_ad,
     result.iter = i;
     result.status = 0;
     result.gradientNorm = norm(g);
-    for (int i=0;i<=x.size();i++){
+    for (int i=0;i<x.size();i++){
         result.coordinates[i] = x[i];
         //    std::cout<< "x["<<i<<"]: " << best_params[i]<<std::endl;
     }
@@ -341,22 +340,45 @@ Result optimize(const ADFunc &f_ad,
 }// end dfp
 
 
-Result run_minimizers(const ADFunc &f_ad, std::vector<double> x0, std::string name, 
-              int pop_size, int dim, std::string algorithm, std::pair<std::vector<double>, std::vector<double>> bounds) {
+Result run_minimizers(const ADFunc &f_ad, std::string name, int pso_iter, int bfgs_iter, 
+    int pop_size, int dim,int seed, int converged, double tolerance, std::string algorithm,double lower,double upper) {
     global_min = std::numeric_limits<double>::max();
-    auto start = std::chrono::high_resolution_clock::now();
-    //auto final_population = genetic_algo(func, max_gens, pop_size, dim, x0, algorithm, bounds);
-    Result result = optimize(f_ad,x0, algorithm, 1e-8, 10000, bounds);
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-    long time = duration.count();
-    result.time = time;
-    std::cout << "\ntime: " << time << " ms" << std::endl;
-    std::cout << "Predicted Global minimum for " << name << ": " << result.fval <<std::endl;
-    std::cout << "at the coordinates: \n";
-    for(int i=0;i<x0.size();i++) {
-    	std::cout << "x["<<i<<"]: "<<std::scientific<<result.coordinates[i] << "\n";
+    long total_time = 0;
+    int converged_counter = 0;
+    Result global_best;
+    global_best.fval = global_min;
+    for(int i=0;i<pop_size;i++) {
+    	std::vector<double> x0;
+    	auto start = std::chrono::high_resolution_clock::now();
+        for(int d=0;d<dim;++d){
+            x0.push_back(uniform_rand(lower,upper));
+            //std::cout << "x["<<d<<"]: "<<x0[d]<<"  ";
+        }
+        //std::cout << std::endl;
+    	Result result = optimize(f_ad,x0,algorithm,tolerance, 10000);
+    	auto stop = std::chrono::high_resolution_clock::now();
+    	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    	result.time = duration.count();
+    	total_time += result.time;
+    	if (result.fval < global_min) {
+    		global_best = result;
+    	}
+    	if(result.status == 1) {
+			converged_counter+= 1;
+			if(converged_counter == converged) {
+				std::cout << "\nLast particle converged!" << std::endl;
+				break;
+			}
+    	}
     }
-    std::cout << "\nin " << result.iter << " iterations." << std::endl;
-    return result;
+    //auto final_population = genetic_algo(func, max_gens, pop_size, dim, x0, algorithm, bounds);
+
+    std::cout << "\ntotal time: " << total_time << " ms" << std::endl;
+    std::cout << "Best Particle" << name << ": " << global_best.fval <<std::endl;
+    std::cout << "at the coordinates: \n";
+    for(int i=0;i<global_best.coordinates.size();i++) {
+    	std::cout << "x["<<i<<"]: "<<std::scientific<<global_best.coordinates[i] << "\n";
+    }
+    std::cout << "\nin " << global_best.iter << " iterations." << std::endl;
+    return global_best;
 }

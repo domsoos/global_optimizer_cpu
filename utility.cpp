@@ -14,6 +14,41 @@ long measure_memory() {
     return r_usage.ru_maxrss;
 }
 
+namespace util {
+	double calculate_euclidean(std::vector<double> coordinates,std::string fname) {
+
+    double sum_sq = 0.0;
+
+    if (fname == "rosenbrock") {
+        // global minimizer at x_i = 1 for all i
+        for (double xi : coordinates) {
+            double d = xi - 1.0;
+            sum_sq += d * d;
+        }
+    } else if (fname == "goldstein") {
+        // Goldstein–Price has its global minimum at (0, -1) in 2D
+        if (coordinates.size() < 2)
+            throw std::invalid_argument("Goldstein–Price requires at least 2 dims");
+        double d0 = coordinates[0] - 0.0;
+        double d1 = coordinates[1] - (-1.0);
+        sum_sq += d0*d0 + d1*d1;
+        // if more dims are passed, assume their minimizers are at 0:
+        for (size_t i = 2; i < coordinates.size(); ++i) {
+            sum_sq += coordinates[i] * coordinates[i];
+        }
+    } else if (fname == "rastrigin" || fname == "ackley") {
+        // both have global minimizer at the origin
+        for (double xi : coordinates) {
+            sum_sq += xi * xi;
+        }
+    } else {
+        throw std::invalid_argument("Unknown function name: " + fname);
+    }
+    return std::sqrt(sum_sq);
+}
+
+}
+
 double global_min = std::numeric_limits<double>::max();
 std::vector<double> best_params;
 

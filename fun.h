@@ -144,7 +144,6 @@ template<int DIM> struct Ackley {
 };
 
 
-
 /*
 template<typename Function, int DIM>
 void calculateGradientUsingAD(double *x, double *gradient) {
