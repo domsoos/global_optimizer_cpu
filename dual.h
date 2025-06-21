@@ -1,4 +1,6 @@
 #pragma once
+#include <vector>
+#include <functional>
 
 namespace dual {
 
@@ -75,4 +77,34 @@ static __inline__ T pow(const T& base, double exponent) {
 }
 
 } // end of dual name space
+
+
+/// A “pure AD” function: takes an n-vector of DualNumbers (where
+/// the .dual fields seed partials) and returns f(x) in .real, df in .dual.
+using ADFunc = std::function<dual::DualNumber(const std::vector<dual::DualNumber>&)>;
+
+// serial gradient using automatic differentiation
+inline std::vector<double> gradientAD(
+    const ADFunc &f_ad,
+    const std::vector<double> &x
+) {
+    size_t n = x.size();
+    std::vector<dual::DualNumber> xDual(n);
+    std::vector<double>           grad(n);
+
+    // initialize real parts, zero dual parts
+    for (size_t i = 0; i < n; ++i)
+        xDual[i] = dual::DualNumber(x[i], 0.0);
+
+    // seed one coordinate at a time
+    for (size_t i = 0; i < n; ++i) {
+        xDual[i].dual = 1.0;                   // dx_i/dx_i = 1
+        dual::DualNumber res = f_ad(xDual);    // res.dual = df/dx_i
+        grad[i]           = res.dual;
+        xDual[i].dual     = 0.0;               // reset for next pass
+    }
+
+    return grad;
+}
+
 

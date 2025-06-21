@@ -4,7 +4,7 @@ double square(double x)
 {
   return x * x;
 }
-
+/*
 double rosenbrock(std::vector<double>& x) {
   return square(1 - x[0]) + 100 * square(x[1] - square(x[0]));
 }
@@ -16,10 +16,6 @@ double rosenbrock_multi(std::vector<double>& x) {
     }
     return sum;
 }
-
-// simulated annealing
-
-// 
 
 double rastrigin(std::vector<double>& x) {
   double sum = 0;
@@ -224,3 +220,4 @@ double heat_conduction(std::vector<double>& x ) {
   return term1 + term2 + term3 + term4;
 
 }
+*/

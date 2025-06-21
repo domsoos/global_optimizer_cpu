@@ -33,8 +33,8 @@ std::vector<Individual> init_population(std::function<double(std::vector<double>
 // Selection based on fitness 
 Individual tournament_selection(std::vector<Individual> population) {
     // Pick random individuals, avoid picking last index
-    Individual ind1 = population[rand(0, population.size()-2)]; 
-    Individual ind2 = population[rand(0, population.size()-2)];
+    Individual ind1 = population[uniform_rand(0, population.size()-2)]; 
+    Individual ind2 = population[uniform_rand(0, population.size()-2)];
 
     // Return the better individual
     if (ind1.fitness < ind2.fitness) {
@@ -68,7 +68,7 @@ void mutate(Individual &ind) {
     // with 15% probability
     if (rand(0, 1) < 0.15) {
         // mutate one of the genes by adding a small random value between -0.25 and 0.25
-        ind.genes[rand(0, ind.genes.size() - 1)] += rand(-0.25, 0.25); 
+        ind.genes[uniform_rand(0, ind.genes.size() - 1)] += uniform_rand(-0.25, 0.25); 
     }// end if
 }// end mutate
 

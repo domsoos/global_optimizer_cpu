@@ -10,9 +10,11 @@
 
 #include "dual.h"
 
-double rand(double min, double max);
-int rand(int min, int max);
 long measure_memory();
+
+extern std::random_device rd;
+extern std::mt19937      rng; 
+double uniform_rand(double min, double max);
 
 extern double global_min;
 extern std::vector<double> best_params;

@@ -41,7 +41,7 @@ Result optimize(
     std::pair<std::vector<double>, std::vector<double>> bounds
 );
 
-Result minimize(
+Result run_minimizers(
     const ADFunc &f_ad,
     std::vector<double> x0,
     std::string name,

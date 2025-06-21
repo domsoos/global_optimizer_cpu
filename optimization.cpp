@@ -13,15 +13,6 @@ void hostPSOInit(
     int             DIM,
     int             PSO_ITERS = 10)
 {
-    // simple 64‑bit LCG for host randomness
-    uint64_t state = 1234;
-    auto rand01 = [&](){
-      state = state * 6364136223846793005ULL + 1;
-      return double((state >> 11) & ((1ULL<<53)-1)) / double(1ULL<<53);
-    };
-    auto randR = [&](double lo, double hi){
-            return lo + (hi - lo) * rand01();
-    };
     //printf("before allocation\n");
     // allocate arrays
     double* X        = new double[N*DIM];
@@ -35,8 +26,8 @@ void hostPSOInit(
     double vel_range = (upper - lower) * 0.1;
     for (int i = 0; i < N; ++i) {
         for (int d = 0; d < DIM; ++d) {
-            X[i*DIM + d]      = randR(lower, upper);
-            V[i*DIM + d]      = randR(-vel_range, vel_range);
+            X[i*DIM + d]      = uniform_rand(lower, upper);
+            V[i*DIM + d]      = uniform_rand(-vel_range, vel_range);
             pBestX[i*DIM + d] = X[i*DIM + d];
         }
         pBestVal[i] = FunctionEval(&X[i*DIM]);
@@ -69,7 +60,7 @@ void hostPSOInit(
     for (int it = 0; it < PSO_ITERS; ++it) {
         for (int i = 0; i < N; ++i) {
             for (int d = 0; d < DIM; ++d) {
-                double r1 = rand01(), r2 = rand01();
+                double r1 = uniform_rand(0.0, 1.0), r2 = uniform_rand(0.0, 1.0);;
                 V[i*DIM + d] = w * V[i*DIM + d]
                               + c1 * r1 * (pBestX[i*DIM + d] - X[i*DIM + d])
                               + c2 * r2 * (gBestX[d]       - X[i*DIM + d]);
@@ -350,12 +341,12 @@ Result optimize(const ADFunc &f_ad,
 }// end dfp
 
 
-Result minimize(const ADFunc &f_ad, std::vector<double> x0, std::string name, 
+Result run_minimizers(const ADFunc &f_ad, std::vector<double> x0, std::string name, 
               int pop_size, int dim, std::string algorithm, std::pair<std::vector<double>, std::vector<double>> bounds) {
     global_min = std::numeric_limits<double>::max();
     auto start = std::chrono::high_resolution_clock::now();
     //auto final_population = genetic_algo(func, max_gens, pop_size, dim, x0, algorithm, bounds);
-    Result result = optimize(f_ad,x0, algorithm, 1e-12, 2500, bounds);
+    Result result = optimize(f_ad,x0, algorithm, 1e-8, 10000, bounds);
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
     long time = duration.count();

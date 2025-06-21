@@ -1,15 +1,11 @@
 #include "utility.h"
 
-std::default_random_engine generator;
-std::uniform_real_distribution<double> distribution(-2.0, 2.0);
+std::random_device rd;
+std::mt19937      rng(rd());
 
-double rand(double min, double max) {
-  return distribution(generator); 
-}
-
-int rand(int min, int max) {
-  std::uniform_int_distribution<int> dist(min, max);
-  return dist(generator);
+double uniform_rand(double min, double max) {
+    std::uniform_real_distribution<double> dist(min, max);
+    return dist(rng);
 }
 
 long measure_memory() {
@@ -17,7 +13,6 @@ long measure_memory() {
     getrusage(RUSAGE_SELF, &r_usage);
     return r_usage.ru_maxrss;
 }
-
 
 double global_min = std::numeric_limits<double>::max();
 std::vector<double> best_params;

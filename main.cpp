@@ -1,31 +1,57 @@
 #include "utility.h"
 #include "test_functions.h"
 #include "optimization.h"
+#include "dual.h"
+#include "fun.h"
 
 #include <sys/resource.h>
 #include <fstream>
 #include <sstream>
 
-ADFunc makeRosenbAd(int dim) {
-    switch (dim) {
-      case 2:
-        return [](const std::vector<dual::DualNumber>& vx) {
-            return util::Rosenbrock<2>::evaluate(vx.data());
-        };
-      case 5:
-        return [](const std::vector<dual::DualNumber>& vx) {
-            return util::Rosenbrock<5>::evaluate(vx.data());
-        };
-      case 10:
-        return [](const std::vector<dual::DualNumber>& vx) {
-            return util::Rosenbrock<10>::evaluate(vx.data());
-        };
-      default:
-        throw std::runtime_error("Unsupported dimension for Rosenbrock AD");
+ADFunc makeTestFunc(const std::string &name, int dim) {
+    using util::Rosenbrock;
+    using util::Rastrigin;
+    using util::Ackley;
+    using util::GoldsteinPrice;
+
+    if (name == "rosenbrock") {
+        switch (dim) {
+          case 2:  return [](const std::vector<dual::DualNumber>& vx){ return Rosenbrock<2>::evaluate(vx.data()); };
+          case 5:  return [](const std::vector<dual::DualNumber>& vx){ return Rosenbrock<5>::evaluate(vx.data()); };
+          case 10: return [](const std::vector<dual::DualNumber>& vx){ return Rosenbrock<10>::evaluate(vx.data()); };
+          default: throw std::runtime_error("rosenbrock supports dims 2,5,10");
+        }
     }
+    if (name == "rastrigin") {
+        switch (dim) {
+          case 2:  return [](const std::vector<dual::DualNumber>& vx){ return Rastrigin<2>::evaluate(vx.data()); };
+          case 5:  return [](const std::vector<dual::DualNumber>& vx){ return Rastrigin<5>::evaluate(vx.data()); };
+          case 10: return [](const std::vector<dual::DualNumber>& vx){ return Rastrigin<10>::evaluate(vx.data()); };
+          default: throw std::runtime_error("rastrigin supports dims 2,5,10");
+        }
+    }
+    if (name == "ackley") {
+        switch (dim) {
+          case 2:  return [](const std::vector<dual::DualNumber>& vx){ return Ackley<2>::evaluate(vx.data()); };
+          case 5:  return [](const std::vector<dual::DualNumber>& vx){ return Ackley<5>::evaluate(vx.data()); };
+          case 10: return [](const std::vector<dual::DualNumber>& vx){ return Ackley<10>::evaluate(vx.data()); };
+          default: throw std::runtime_error("ackley supports dims 2,5,10");
+        }
+    }
+    if (name == "goldstein") {
+        if (dim != 2) throw std::runtime_error("Goldstein–Price only 2-D");
+        return [](const std::vector<dual::DualNumber>& vx){ return GoldsteinPrice<2>::evaluate(vx.data()); };
+    }
+    throw std::runtime_error("Unknown function: " + name);
 }
+
+
 int main() {
-    int dim;
+	std::cout << "Which function? [rosenbrock|rastrigin|ackley|goldstein]: ";
+    std::string fname; std::cin >> fname;
+    std::cout << "Dimension: "; int dim; std::cin >> dim;
+    ADFunc f_ad = makeTestFunc(fname, dim);
+
     long before, after, memory;
     double error;
     char answer, going;
@@ -37,16 +63,14 @@ int main() {
 
     std::string algorithm;
 
-    std::cout << "\n\nMultidimensional Rosenbrock Optimization" << std::endl;
-    std::cout << "How many dimensions? ";
-    std::cin >> dim;
+    std::cout << "\n\nMultidimensional Optimization" << std::endl;
 
     std::ostringstream filenameStream;
     filenameStream << "memory_rosenbrock" << dim << ".csv";
     std::string filename = filenameStream.str();
     std::ofstream rosen(filename);
 
-    ADFunc f_ad = makeRosenbAd(dim);
+    //ADFunc f_ad = makeRosenbAd(dim);
     
     if(dim >= 100) {
         rosen << "Algorithm,Time,Error,MemoryMB,MemoryGB\n";
@@ -89,10 +113,10 @@ int main() {
 
         std::vector<double> x0;
         for(int i=0;i<dim;i++){
-            x0.push_back(2.0);
+            x0.push_back(uniform_rand(-5.0, 5.0));
         }
         before = measure_memory();
-        Result result = minimize(f_ad,x0,"Rosenbrock",0,dim, algorithm, bounds);
+        Result result = run_minimizers(f_ad,x0,"Rosenbrock",0,dim, algorithm, bounds);
         //  rosenbrock_multi, x0,algorithm,1e-12,2500,bounds);
         after = measure_memory();
         memory = after - before;

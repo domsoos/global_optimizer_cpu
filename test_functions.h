@@ -1,3 +1,4 @@
+//test_functions.h
 #pragma once
 #include <vector>
 #include "dual.h"
@@ -6,7 +7,7 @@
 template<int DIM>
 dual::DualNumber rosenbrock_ad(const dual::DualNumber* x);
 
-
+/*
 double rosenbrock(std::vector<double>& x);
 double rosenbrock_multi(std::vector<double>& x);
 double rastrigin(std::vector<double>& x);
@@ -22,3 +23,4 @@ double thermister(std::vector<double>& x);
 double two_exponentials(std::vector<double>& x);
 double chemical_equilibrium(std::vector<double>& x);
 double heat_conduction(std::vector<double>& x);
+*/
