@@ -302,7 +302,7 @@ Result optimize(const ADFunc &f_ad,
 }// end dfp
 
 Result run_minimizers(const ADFunc &f_ad,std::string const& name,int pso_iter, int bfgs_iter, 
-    int pop_size, int dim,int seed, int converged, double tolerance, std::string const& algorithm,double lower,double upper) {
+    int pop_size, int dim,int seed, int converged, double tolerance, std::string const& algorithm,double lower,double upper,const int run) {
     global_min = std::numeric_limits<double>::max();
     
     // wrap f_ad into a simple double(const double*) function:
@@ -348,7 +348,8 @@ Result run_minimizers(const ADFunc &f_ad,std::string const& name,int pso_iter, i
     	}
     	if(result.status == 1) {
 			converged_counter+= 1;
-			//util::append_results_2_tsv();
+			double error = util::calculate_euclidean(result.coordinates, name);
+			util::append_results_2_tsv(dim, points_we_need,name,0.0, 0.0, 0.0, total_time, result.iter, pso_iter, error, result.fval, result.coordinates, result.idx, result.status, result.gradientNorm, run);
 			if(converged_counter == converged) {
 				std::cout << "\nLast particle converged!" << std::endl;
 				break;
@@ -370,7 +371,7 @@ Result run_minimizers(const ADFunc &f_ad,std::string const& name,int pso_iter, i
     	std::cout << "x["<<i<<"]: "<<std::scientific<<global_best.coordinates[i] << "\n";
     }
     std::cout << "\nin " << global_best.iter << " iterations." << std::endl;
-    double error = util::calculate_euclidean(global_best.coordinates, name);
-    util::append_results_2_tsv(dim, points_we_need,name,0.0/*ms_init*/,0.0/*ms_pso*/,0.0/*ms_opt*/,total_time, global_best.iter, pso_iter, error,global_best.fval, global_best.coordinates, global_best.idx, global_best.status, global_best.gradientNorm);
+    //double error = util::calculate_euclidean(global_best.coordinates, name);
+    //util::append_results_2_tsv(dim, points_we_need,name,0.0/*ms_init*/,0.0/*ms_pso*/,0.0/*ms_opt*/,total_time, global_best.iter, pso_iter, error,global_best.fval, global_best.coordinates, global_best.idx, global_best.status, global_best.gradientNorm, run);
     return global_best;
 }// end run_minimizers

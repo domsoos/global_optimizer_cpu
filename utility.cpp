@@ -48,7 +48,7 @@ namespace util {
 }
 
 
-void append_results_2_tsv(const int dim,const int N, const std::string fun_name,float ms_init, float ms_pso,float ms_opt,float ms_rand, const int max_iter, const int pso_iter,const double error,const double globalMin, std::vector<double> hostCoordinates, const int idx, const int status, const double norm) {
+void append_results_2_tsv(const int dim,const int N, const std::string fun_name,float ms_init, float ms_pso,float ms_opt,float ms_rand, const int max_iter, const int pso_iter,const double error,const double globalMin, std::vector<double> hostCoordinates, const int idx, const int status, const double norm, const int run) {
         std::string filename = "zeus_" + std::to_string(dim) + "d_results.tsv";
         std::ofstream outfile(filename, std::ios::app);
         
@@ -60,11 +60,12 @@ void append_results_2_tsv(const int dim,const int N, const std::string fun_name,
             return;
         }
 
+        std::string tab = "\t";
         // if file is new or empty, let us write the header
         if (file_empty) {
-            outfile << "fun\tN\tidx\tstatus\tbfgs_iter\tpso_iter\ttime\terror\tfval\tnorm";
+            outfile << "fun\trun\tN\tidx\tstatus\tbfgs_iter\tpso_iter\ttime\terror\tfval\tnorm";
             for (int i = 0; i < dim; i++)
-                outfile << "\tcoord_" << i;
+                outfile << tab << "coord_" << i;
             outfile << std::endl;
         }// end if file is empty
         
@@ -76,13 +77,13 @@ void append_results_2_tsv(const int dim,const int N, const std::string fun_name,
             time_seconds = (ms_opt+ms_rand);
             //printf("bfgs time = total time = %.4f ms\n", time_seconds);
         }
-        outfile << fun_name << "\t" << N << "\t"<<idx<<"\t"<<status <<"\t" << max_iter << "\t" << pso_iter << "\t"
-            << time_seconds << "\t"
-            << std::scientific << error << "\t" << globalMin << "\t" << norm <<"\t" ;
+        outfile << fun_name << tab << run << tab << N << tab<<idx<<tab<<status <<tab << max_iter << tab << pso_iter << tab
+            << time_seconds << tab
+            << std::scientific << error << tab << globalMin << tab << norm <<tab ;
         for (int i = 0; i < dim; i++) {
             outfile << hostCoordinates[i];
             if (i < dim - 1)
-                outfile << "\t";
+                outfile << tab;
         }
         outfile << "\n";
         outfile.close();

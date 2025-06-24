@@ -47,8 +47,8 @@ ADFunc makeTestFunc(const std::string &name, int dim) {
 
 
 int main(int argc, char* argv[]) {
-	if (argc != 9) {
-	 std::cerr << "Usage: " << argv[0] << " <lower_bound> <upper_bound> <max_iter> <pso_iters> <converged> <number_of_optimizations> <tolerance> <seed>\n";
+	if (argc != 10) {
+	 std::cerr << "Usage: " << argv[0] << " <lower_bound> <upper_bound> <max_iter> <pso_iters> <converged> <number_of_optimizations> <tolerance> <seed> <run>\n";
         return 1;
     }
     double lower = std::atof(argv[1]);
@@ -59,6 +59,7 @@ int main(int argc, char* argv[]) {
     int swarm_size = std::stoi(argv[6]);
     double tolerance = std::stod(argv[7]);
     int seed = std::stoi(argv[8]);
+    int run = std::stoi(argv[9]);
 
 	std::cout << "Which function? [rosenbrock|rastrigin|ackley|goldstein]: ";
     std::string fname; std::cin >> fname;
@@ -75,7 +76,7 @@ int main(int argc, char* argv[]) {
 
     while(!done) {
         before = measure_memory();
-        Result result = run_minimizers(f_ad,fname,pso_iters,bfgs_iter,swarm_size,dim,seed, requiredConverged, tolerance, algorithm, lower, upper);
+        Result result = run_minimizers(f_ad,fname,pso_iters,bfgs_iter,swarm_size,dim,seed, requiredConverged, tolerance, algorithm, lower, upper, run);
         //  rosenbrock_multi, x0,algorithm,1e-12,2500,bounds);
         after = measure_memory();
         memory = after - before;

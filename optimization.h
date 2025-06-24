@@ -8,6 +8,7 @@
 struct Result {
 	int idx;
 	long time;
+	//int points_we_need;
     int status; // 1 if converged, else if stopped_bc_someone_flipped_the_flag: 2, else 0
     double fval; // function value
     double gradientNorm;
@@ -42,9 +43,9 @@ Result optimize(
 
 Result run_minimizers(
     const ADFunc &f_ad,
-    std::string name, int pso_iter,int bfgs_iter,
+    std::string const& name, int pso_iter,int bfgs_iter,
     int pop_size,
     int dim,int seed,
     int converged, double tolerance,
-    std::string algorithm,double lower, double upper
+    std::string const& algorithm,double lower, double upper, const int run
 );
