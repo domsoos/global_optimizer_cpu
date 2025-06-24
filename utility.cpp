@@ -15,7 +15,7 @@ long measure_memory() {
 }
 
 namespace util {
-	double calculate_euclidean(std::vector<double> coordinates,std::string fname) {
+	double calculate_euclidean(std::vector<double> const& coordinates,std::string const& fname) {
 
     double sum_sq = 0.0;
 
@@ -62,7 +62,7 @@ void append_results_2_tsv(const int dim,const int N, const std::string fun_name,
 
         // if file is new or empty, let us write the header
         if (file_empty) {
-            outfile << "fun\tN\tidx\tstatus\tbfgs_iter\tpso_iter\ttime\terror\tfval\tnorm\t";
+            outfile << "fun\tN\tidx\tstatus\tbfgs_iter\tpso_iter\ttime\terror\tfval\tnorm";
             for (int i = 0; i < dim; i++)
                 outfile << "\tcoord_" << i;
             outfile << std::endl;

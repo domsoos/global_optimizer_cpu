@@ -15,6 +15,7 @@ hostPSOInit(const std::function<double(const double*)>& f_eval,
     //printf("before allocation\n");
     // allocate arrays
     std::vector<double> X(N*DIM);
+    //std::vector<double> pBestX(N*DIM);  
     //double* X        = new double[N*DIM];
     double* V        = new double[N*DIM];
     double* pBestX   = new double[N*DIM];
@@ -88,6 +89,8 @@ hostPSOInit(const std::function<double(const double*)>& f_eval,
     for (int d = 0; d < DIM; ++d)
         printf(" %8.4f", gBestX[d]);
     printf(" ]\n");
+
+    X.assign(pBestX, pBestX + N*DIM);
 
     // clean up except swarm coordinates
     delete[] V;
@@ -184,48 +187,10 @@ void bfgs_update_seq(std::vector<std::vector<double>>& H,
     H.swap(H_new);
 }
 
-
-/* Davidon-Fletcher-Powell optimization algorithm */
-void dfp_update(std::vector<std::vector<double>>& H,
-                std::vector<double> delta_x,
-                std::vector<double> delta_g) {
-
-    // term1 is the outer product of delta_x with itself.
-    std::vector<std::vector<double>> term1 = outer_product(delta_x, delta_x);
-
-    // term2 is the dot product of delta_x and delta_g
-    // delgam in Minuit code
-    double term2 = dot_product(delta_x, delta_g);
-
-    // term3 is the matrix multiplication of H and the outer product of delta_g with itself.
-    std::vector<std::vector<double>> term3 = matmul(H, outer_product(delta_g, delta_g));
-    // term4 is the result of term3 being matrix multiplied with H again.
-    std::vector<std::vector<double>> term4 = matmul(term3, H);
-
-    // term5 is the dot product of delta_g and the result of H matrix multiplied with delta_g.
-    // in Minuit code it is gvg
-    double term5 = dot_product(delta_g, matvec_product(H, delta_g));
-
-    // The approximation of the inverse Hessian is updated element by element.
-    for (int row = 0; row < H.size(); row++) {
-        for (int col = 0; col < H[row].size(); col++) {
-            H[row][col] = H[row][col] + term1[row][col] / safe_divide(term1[row][col], term2) - term4[row][col] / safe_divide(term4[row][col], term5);
-        }// end inner for
-    }// end outer for
-    /*std::cout<<"\nHessian:\n";
-    for (int row = 0; row < H.size(); row++) {
-        for (int col = 0; col < H[row].size(); col++) {
-            std::cout << H[row][col] << "  ";
-        }// end inner for
-        std::cout << std::endl;
-    }// end outer for
-    */
-}
-
 Result optimize(const ADFunc &f_ad,
     std::vector<double>       x0,
     const std::string &       algorithm,
-    double                    tol,
+    double                    tolerance,
     int                       max_iter) {
     /* real‐valued wrapper for line‐search
     auto f_real = [&](std::vector<double> &xx){
@@ -249,13 +214,12 @@ Result optimize(const ADFunc &f_ad,
     Result result;
     result.status       = -1;     // assume “not converged” by default
     result.fval         = 333777.0;
-    result.gradientNorm = 69.0;
+    result.gradientNorm = -1;
     result.coordinates.resize(x.size());
     for (int d = 0; d < x.size(); ++d) {
-        result.coordinates[d] = 0.0;
+        result.coordinates[d] = 420.0;
     }
     result.iter = -1;
-   
 
     // Initialize the Hessian matrix to identity matrix
     std::vector<std::vector<double>> H(x0.size(), std::vector<double>(x0.size(), 0));
@@ -270,8 +234,8 @@ Result optimize(const ADFunc &f_ad,
         g = gradientAD(f_ad, x);//gradient(func, x, 1e-7);
 
         // Check if the length of gradient vector is less than our tolerance
-        if (norm(g) < 1e-8) { 
-        	std::cout << "converged" << std::endl;
+        if (norm(g) < tolerance) { 
+        	//std::cout << "converged" << std::endl;
             min_value = std::min(min_value, f_real(x));
             if (min_value < global_min) {
                 global_min = min_value;
@@ -287,6 +251,7 @@ Result optimize(const ADFunc &f_ad,
             result.iter = i;
             result.fval = min_value;
             result.status = 1;
+            result.gradientNorm = norm(g);
             return result;
         }// end if
 
@@ -298,7 +263,6 @@ Result optimize(const ADFunc &f_ad,
 
         /*** Calculate optimal step size in the search direction p ***/
         double f0 = f_real(x);
-
         double alpha = line_search(f_real, f0, x, p, g); //
 
         // Update the current point x by taking a step of size alpha in the direction p.
@@ -310,17 +274,17 @@ Result optimize(const ADFunc &f_ad,
         for (int j = 0; j < x.size(); j++) { delta_x[j] -= x[j];}// end for
 
         // Compute the difference in the gradient at the new point and the old point, delta_g.
-        std::vector<double> delta_g = gradientAD(f_ad, x);//gradient(func, x_new, 1e-7);
+        std::vector<double> delta_g = gradientAD(f_ad, x_new);//gradient(func, x_new, 1e-7);
         for (int j = 0; j < g.size(); j++) { delta_g[j] -= g[j];}// end for
 
         if (algorithm == "bfgs") {
             // Update the inverse Hessian approximation using BFGS
             double delta_dot = dot_product(delta_x, delta_g);
             bfgs_update_seq(H, delta_x, delta_g, delta_dot);
-        } else {
+        } /*else {
             // Update the approximation of the inverse Hessian using DFP
             dfp_update(H, delta_x, delta_g);
-        }
+        }*/
         x = x_new;
         min_value = std::min(min_value, f_real(x));
         //}//end else
@@ -337,8 +301,8 @@ Result optimize(const ADFunc &f_ad,
     return result; 
 }// end dfp
 
-Result run_minimizers(const ADFunc &f_ad, std::string name, int pso_iter, int bfgs_iter, 
-    int pop_size, int dim,int seed, int converged, double tolerance, std::string algorithm,double lower,double upper) {
+Result run_minimizers(const ADFunc &f_ad,std::string const& name,int pso_iter, int bfgs_iter, 
+    int pop_size, int dim,int seed, int converged, double tolerance, std::string const& algorithm,double lower,double upper) {
     global_min = std::numeric_limits<double>::max();
     
     // wrap f_ad into a simple double(const double*) function:
@@ -352,9 +316,9 @@ Result run_minimizers(const ADFunc &f_ad, std::string name, int pso_iter, int bf
     int converged_counter = 0;
     Result global_best;
     global_best.fval = global_min;
-    std::vector<double> swarm;
+
+    std::vector<double> swarm(dim*pop_size);
     float ms_pso = 0.0f;
-    float bfgs_time = 0.0f;
     if (pso_iter > 0) {
     	auto start = std::chrono::high_resolution_clock::now();
         swarm = hostPSOInit(f_eval,lower,upper,pop_size, dim,pso_iter);
@@ -363,7 +327,9 @@ Result run_minimizers(const ADFunc &f_ad, std::string name, int pso_iter, int bf
     	ms_pso = duration.count();
     	total_time += ms_pso;
     }
+    int points_we_need = 0;
     for(int i=0;i<pop_size;i++) {
+    	points_we_need++;
     	std::vector<double> x0(dim);
     	if (!swarm.empty()) {
     		for(int d=0;d<dim;++d) x0[d] = swarm[i*dim + d];
@@ -378,14 +344,22 @@ Result run_minimizers(const ADFunc &f_ad, std::string name, int pso_iter, int bf
     	result.idx = i;
     	if (result.fval < global_min) {
     		global_best = result;
+    		global_min = result.fval;
     	}
     	if(result.status == 1) {
 			converged_counter+= 1;
+			//util::append_results_2_tsv();
 			if(converged_counter == converged) {
 				std::cout << "\nLast particle converged!" << std::endl;
 				break;
 			}
     	}
+    }
+    if(converged_counter == converged) 
+    	global_best.status = 1;
+    else {
+    	global_best.status = 0;
+    	points_we_need = -1;
     }
     //auto final_population = genetic_algo(func, max_gens, pop_size, dim, x0, algorithm, bounds);
     global_best.time = total_time;
@@ -397,6 +371,6 @@ Result run_minimizers(const ADFunc &f_ad, std::string name, int pso_iter, int bf
     }
     std::cout << "\nin " << global_best.iter << " iterations." << std::endl;
     double error = util::calculate_euclidean(global_best.coordinates, name);
-    util::append_results_2_tsv(dim, pop_size,name,0.0/*ms_init*/,0.0/*ms_pso*/,0.0/*ms_opt*/,total_time, bfgs_iter, pso_iter, error,global_best.fval, global_best.coordinates, global_best.idx, global_best.status, global_best.gradientNorm);
+    util::append_results_2_tsv(dim, points_we_need,name,0.0/*ms_init*/,0.0/*ms_pso*/,0.0/*ms_opt*/,total_time, global_best.iter, pso_iter, error,global_best.fval, global_best.coordinates, global_best.idx, global_best.status, global_best.gradientNorm);
     return global_best;
-}
+}// end run_minimizers

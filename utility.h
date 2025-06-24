@@ -18,7 +18,7 @@ extern std::mt19937      rng;
 double uniform_rand(double min, double max);
 
 namespace util {
-	double calculate_euclidean(std::vector<double> coordinates,std::string fname);
+	double calculate_euclidean(std::vector<double> const& coordinates,std::string const& fname);
     void append_results_2_tsv(const int dim,const int N, const std::string fun_name,float ms_init, float ms_pso,float ms_opt,float ms_rand, const int max_iter, const int pso_iter,const double error,const double globalMin, std::vector<double> hostCoordinates, const int idx, const int status, const double norm);
 }
 
