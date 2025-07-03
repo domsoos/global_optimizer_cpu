@@ -14,12 +14,12 @@ PSO=(5)
 #PSO=(100 300 1000 3000 10000)
 #PSO=(0)
 DIM=5
-for i in {1..100}
+for i in {1..1000}
 do
     echo -e "\n\n\t\t=== Run $i ===="
     for ITER in "${OPT[@]}"; do
         echo "=== Running with PSO ITER=$ITER ==="
-	    for FUNC in rosenbrock rastrigin ackley; do
+	    for FUNC in rosenbrock; do
 
         # pick the threshold by function
         case "$FUNC" in
@@ -35,7 +35,7 @@ do
 	         echo $FUNC  # Function selector
 	         echo $DIM      # Dimension of the problem
 	         echo "n"      # Exit loop
-	       } | ./main -5.12 5.12 10000 5 100 "$ITER" "$THRESHOLD" "$(($i*2)))"
+	       } | ./main -5.12 5.12 10000 5 100 "$ITER" "$THRESHOLD" "$(($i*2)))" "$i"
 	    done
     done
 done
